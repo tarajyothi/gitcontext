@@ -1,0 +1,86 @@
+"""GitContext API entrypoint."""
+import logging
+import uuid
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from .config import get_settings
+from .db import SessionLocal, init_db
+
+settings = get_settings()
+logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+log = logging.getLogger("gitcontext")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    log.info("database initialised")
+    yield
+
+
+app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+
+def error_body(code: str, message: str, request_id: str, details=None) -> dict:
+    body = {"error": {"code": code, "message": message, "request_id": request_id}}
+    if details is not None:
+        body["error"]["details"] = details
+    return body
+
+
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    request.state.request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+    response = await call_next(request)
+    response.headers["x-request-id"] = request.state.request_id
+    return response
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exc(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(error_body("http_error", str(exc.detail), request.state.request_id), status_code=exc.status_code)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exc(request: Request, exc: RequestValidationError):
+    details = [{"field": ".".join(str(p) for p in e["loc"]), "msg": e["msg"]} for e in exc.errors()]
+    return JSONResponse(error_body("validation_error", "Invalid request", request.state.request_id, details), status_code=422)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exc(request: Request, exc: Exception):
+    # Log full detail server-side; never leak internals to the client.
+    log.exception("unhandled error request_id=%s", request.state.request_id)
+    return JSONResponse(error_body("internal_error", "Internal server error", request.state.request_id), status_code=500)
+
+
+@app.get("/health", tags=["system"])
+def health():
+    """Liveness + database connectivity check."""
+    db_ok = True
+    try:
+        with SessionLocal() as s:
+            s.execute(text("SELECT 1"))
+    except Exception:
+        log.exception("health check: database unreachable")
+        db_ok = False
+    body = {
+        "status": "ok" if db_ok else "degraded",
+        "service": settings.app_name,
+        "version": settings.app_version,
+        "database": "ok" if db_ok else "unreachable",
+    }
+    return JSONResponse(body, status_code=200 if db_ok else 503)

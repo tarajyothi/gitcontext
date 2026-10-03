@@ -1,0 +1,14 @@
+# Optional on Day 1 (SQLite is the default). Required from Day 3 for pgvector.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: gitcontext
+      POSTGRES_PASSWORD: gitcontext
+      POSTGRES_DB: gitcontext
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
