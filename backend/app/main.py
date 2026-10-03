@@ -12,6 +12,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
 from .db import SessionLocal, init_db
+from .ingest.errors import IngestError
+from .routes import router
 
 settings = get_settings()
 logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -49,6 +51,11 @@ async def request_id_middleware(request: Request, call_next):
     return response
 
 
+@app.exception_handler(IngestError)
+async def ingest_exc(request: Request, exc: IngestError):
+    return JSONResponse(error_body(exc.code, exc.message, request.state.request_id), status_code=exc.status)
+
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exc(request: Request, exc: StarletteHTTPException):
     return JSONResponse(error_body("http_error", str(exc.detail), request.state.request_id), status_code=exc.status_code)
@@ -65,6 +72,9 @@ async def unhandled_exc(request: Request, exc: Exception):
     # Log full detail server-side; never leak internals to the client.
     log.exception("unhandled error request_id=%s", request.state.request_id)
     return JSONResponse(error_body("internal_error", "Internal server error", request.state.request_id), status_code=500)
+
+
+app.include_router(router)
 
 
 @app.get("/health", tags=["system"])

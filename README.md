@@ -2,7 +2,7 @@
 
 **A codebase intelligence copilot.** Connect a GitHub repository, and ask questions about it. Answers are generated from retrieved code and cite exact file paths and line ranges. When the evidence isn't there, GitContext says so instead of guessing.
 
-> **Status:** Day 1 of 8 complete: application skeleton. Ingestion, retrieval and RAG are **not built yet** (see [Roadmap](#roadmap)). No quality metrics have been measured: **NOT MEASURED YET**.
+> **Status:** Day 2 of 8 complete: GitHub ingestion works. Chunking, embeddings, retrieval and RAG are **not built yet** (see [Roadmap](#roadmap)). No quality metrics have been measured: **NOT MEASURED YET**.
 
 ## Problem
 Developers constantly join unfamiliar repositories. Grep finds strings but not meaning; generic chatbots hallucinate about code they can't see. GitContext grounds every answer in the actual repository and shows its evidence.
@@ -54,6 +54,13 @@ cd backend && source .venv/bin/activate && python -m pytest -q
 | Method | Path | Description |
 |---|---|---|
 | GET | `/health` | Liveness + DB connectivity. `200 {"status":"ok",...}` or `503` if DB is down |
+| POST | `/repositories` | Body `{"url": "https://github.com/owner/repo"}`. Validates, shallow-clones into `WORKSPACE_DIR`, scans, stores metadata. `201` summary |
+| GET | `/repositories` · `/repositories/{id}` | Repository summaries (status, commit, file count, language breakdown) |
+| GET | `/repositories/{id}/files?limit&offset` | Indexed files: path, language, size, modified/indexed time |
+
+Ingestion errors: `invalid_url` (422), `repo_not_accessible` (404; GitHub gives the same answer for private and non-existent repos), `repo_empty` (422), `no_supported_files` (422), `clone_timeout` (504), `clone_failed` (502). Only public `https://github.com/owner/repo` URLs are accepted.
+
+**Ignored during scan:** `.git`, `node_modules`, build/cache dirs, binaries, lockfiles, files over 1 MB, symlinks, and secret-like files (`.env*`, `*.pem`, `*.key`, `id_rsa`, …). Max 5000 files per repo.
 
 All errors share one shape: `{"error": {"code", "message", "request_id", "details?"}}`. Internals are never leaked to clients.
 
@@ -68,7 +75,7 @@ Repository content is treated as untrusted data. Secrets live only in `.env` (gi
 
 ## Roadmap
 - [x] Day 1: Skeleton, schema, health endpoint, README
-- [ ] Day 2: GitHub ingestion
+- [x] Day 2: GitHub ingestion
 - [ ] Day 3: Code-aware chunking + embeddings
 - [ ] Day 4: Hybrid retrieval + reranking
 - [ ] Day 5: RAG answering + citations
@@ -77,4 +84,8 @@ Repository content is treated as untrusted data. Secrets live only in `.env` (gi
 - [ ] Day 8: Docs, demo, release
 
 ## Limitations (current)
-Nothing beyond `/health` works yet. This section will list measured limits as they are discovered.
+- Ingestion is synchronous (the request blocks while cloning); background jobs are not implemented.
+- Public repositories only; private repo support is not implemented.
+- `modified_at` is the checkout time (git clone resets file times), not the last-commit time.
+- Files without a known extension are stored with `language = null`.
+- No chunking, embeddings, retrieval or answering yet.
