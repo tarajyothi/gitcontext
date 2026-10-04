@@ -22,14 +22,15 @@ def embed_text(c: Chunk) -> str:
     return (head + c.content)[:8000]
 
 
-def index_repository(session: Session, repo_id: int, embedder: Embedder, batch_size: int = 64) -> dict:
+def index_repository(session: Session, repo_id: int, embedder: Embedder, batch_size: int = 64,
+                     check_ready: bool = True) -> dict:
     t0 = time.perf_counter()
     repo = session.get(Repository, repo_id)
     if repo is None:
         raise IngestError("not_found", "Repository not found", 404)
-    if repo.status != "ready":
+    if check_ready and repo.status != "ready":
         raise IngestError("repo_not_ready", "Repository must be ingested successfully before indexing.", 409)
-    root = workspace_path(repo.owner, repo.name)
+    root = workspace_path(repo.id, repo.owner, repo.name)
     if not root.is_dir():
         raise IngestError("workspace_missing", "Repository files are no longer on disk. Re-ingest it first.", 409)
 

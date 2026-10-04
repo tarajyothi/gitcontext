@@ -33,3 +33,14 @@ Repository content is untrusted: it is passed to the LLM strictly as quoted data
 | Embedding text = path + symbol + kind + code; stored `content` stays exact | Embeddings get location context without corrupting citations |
 | Embeddings in `chunk_embeddings` BLOB, NumPy cosine | No new infrastructure; portable SQLite/Postgres; swap to pgvector later |
 | Default hashing embedder, pluggable OpenAI-compatible provider | Works offline and reproducibly; sandbox had no embedding API access/key |
+
+## SaaS core decisions
+| Decision | Why |
+|---|---|
+| Server-side sessions (hashed token in HttpOnly cookie) over JWT | Real logout/revocation; nothing sensitive in the browser |
+| Next.js `/api` rewrite proxy | First-party cookies, no CORS, backend URL stays server-side |
+| Ownership resolved by `WHERE id=? AND workspace_id=?`; 404 for foreign IDs | One enforcement point (`owned_repo`), no ID enumeration |
+| `POST /repositories` returns 202 + background pipeline writing `status`/`stage` | The UI shows real progress instead of blocking or faking it |
+| Workspace dir `{repo_id}__{owner}__{name}` | Two users indexing the same repo never share or delete each other's clone |
+| Startup marks pending/indexing repos failed | A crash can never leave a repo "indexing" forever |
+| Free-plan limits (5 repos, 50 MB indexed source) as config | Entitlement boundary without fake billing |

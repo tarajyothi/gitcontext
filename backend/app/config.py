@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     log_level: str = "INFO"
     # "hashing" = local deterministic baseline (no key needed); "openai" = any OpenAI-compatible /embeddings API
+    session_days: int = 7
+    cookie_secure: bool = False  # set COOKIE_SECURE=true behind HTTPS in production
+    max_repos_per_workspace: int = 5  # "free" plan boundary
+    max_indexed_bytes: int = 50_000_000
     embedding_provider: str = "hashing"
     embedding_model: str = "text-embedding-3-small"
     embedding_base_url: str = "https://api.openai.com/v1"

@@ -14,7 +14,9 @@ from .config import get_settings
 from .db import SessionLocal, init_db
 from .embeddings import EmbeddingError
 from .ingest.errors import IngestError
-from .routes import router
+from .auth import router as auth_router
+from .models import Repository
+from .routes import router, usage_router
 
 settings = get_settings()
 logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -24,7 +26,12 @@ log = logging.getLogger("gitcontext")
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
-    log.info("database initialised")
+    with SessionLocal() as s:  # a restart kills background jobs: never leave repos stuck in pending/indexing
+        stuck = s.query(Repository).filter(Repository.status.in_(("pending", "indexing"))).all()
+        for r in stuck:
+            r.status, r.stage, r.error_message = "failed", None, "Indexing was interrupted by a server restart. Please retry."
+        s.commit()
+    log.info("database initialised (%d interrupted repositories marked failed)", len(stuck))
     yield
 
 
@@ -32,7 +39,8 @@ app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=li
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
-    allow_methods=["GET", "POST"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -80,7 +88,9 @@ async def unhandled_exc(request: Request, exc: Exception):
     return JSONResponse(error_body("internal_error", "Internal server error", request.state.request_id), status_code=500)
 
 
+app.include_router(auth_router)
 app.include_router(router)
+app.include_router(usage_router)
 
 
 @app.get("/health", tags=["system"])

@@ -29,7 +29,7 @@ print("INDEX STATS:", json.dumps(stats))
 bad, sed_bad, sed_n = 0, 0, 0
 with SessionLocal() as db:
     r = db.get(Repository, rid)
-    root = workspace_path(r.owner, r.name)
+    root = workspace_path(r.id, r.owner, r.name)
     chunks = db.query(Chunk).filter_by(repository_id=rid).order_by(Chunk.file_path, Chunk.start_line).all()
     n_emb = db.query(ChunkEmbedding).filter_by(repository_id=rid).count()
     cache = {}

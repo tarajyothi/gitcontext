@@ -16,19 +16,50 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(254), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Workspace(Base):
+    __tablename__ = "workspaces"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    name: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AuthSession(Base):
+    """Server-side session. Only the SHA-256 of the cookie token is stored."""
+    __tablename__ = "auth_sessions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Repository(Base):
     __tablename__ = "repositories"
+    __table_args__ = (UniqueConstraint("workspace_id", "url"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    url: Mapped[str] = mapped_column(String(500), unique=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    url: Mapped[str] = mapped_column(String(500))
     owner: Mapped[str] = mapped_column(String(200))
     name: Mapped[str] = mapped_column(String(200))
     default_branch: Mapped[str | None] = mapped_column(String(200))
     commit_sha: Mapped[str | None] = mapped_column(String(64))
     # pending | indexing | ready | failed
     status: Mapped[str] = mapped_column(String(20), default="pending")
+    stage: Mapped[str | None] = mapped_column(String(20))  # cloning | scanning | embedding while indexing
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     files: Mapped[list["RepoFile"]] = relationship(back_populates="repository", cascade="all, delete-orphan")

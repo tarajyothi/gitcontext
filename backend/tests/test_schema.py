@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import init_db, make_engine
-from app.models import Chunk, RepoFile, Repository
+from app.models import Chunk, RepoFile, Repository, User, Workspace
 
 
 @pytest.fixture()
@@ -15,7 +15,10 @@ def session():
 
 
 def _repo_file(s):
-    r = Repository(url="https://github.com/o/n", owner="o", name="n")
+    u = User(email="a@b.co", password_hash="x")
+    s.add(u); s.flush()
+    w = Workspace(owner_id=u.id, name="w"); s.add(w); s.flush()
+    r = Repository(workspace_id=w.id, url="https://github.com/o/n", owner="o", name="n")
     f = RepoFile(repository=r, path="a.py", language="python", size_bytes=10)
     s.add_all([r, f]); s.commit()
     return r, f

@@ -31,7 +31,7 @@ def clone_repo(clone_url: str, dest: Path) -> CloneResult:
         r = _git(["clone", "--depth", "1", "--quiet", "--no-tags", "--", clone_url, str(dest)], timeout=CLONE_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         shutil.rmtree(dest, ignore_errors=True)
-        raise IngestError("clone_timeout", f"Cloning took longer than {CLONE_TIMEOUT_S}s", 504)
+        raise IngestError("clone_timeout", f"Cloning took longer than {CLONE_TIMEOUT_S}s", 504) from None
     if r.returncode != 0:
         shutil.rmtree(dest, ignore_errors=True)
         err = r.stderr.lower()
