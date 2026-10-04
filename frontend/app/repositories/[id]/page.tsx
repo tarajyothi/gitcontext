@@ -51,9 +51,9 @@ export default function Workspace() {
       {repo && (
         <>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">{repo.owner}/{repo.name}</h1>
-              <a href={repo.url} target="_blank" rel="noreferrer" className="text-xs text-slate-500 hover:underline">{repo.url}</a>
+            <div className="min-w-0">
+              <h1 className="break-words text-2xl font-bold tracking-tight">{repo.owner}/{repo.name}</h1>
+              <a href={repo.url} target="_blank" rel="noreferrer" className="break-all text-xs text-slate-500 hover:underline">{repo.url}</a>
             </div>
             <StatusBadge repo={repo} />
           </div>

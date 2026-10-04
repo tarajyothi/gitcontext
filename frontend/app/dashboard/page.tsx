@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   return (
     <Shell user={user}>
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Repositories</h1>
         {usage && <p className="text-xs text-slate-500">{usage.repositories.used}/{usage.repositories.limit} repositories · {usage.plan} plan · {usage.chunks_indexed.toLocaleString()} chunks indexed</p>}
       </div>
@@ -67,10 +67,10 @@ export default function Dashboard() {
       )}
       <ul className="mt-6 grid gap-4 sm:grid-cols-2">
         {repos?.map((r) => (
-          <li key={r.id} className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm">
+          <li key={r.id} className="min-w-0 rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm">
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{r.owner}/{r.name}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold" title={`${r.owner}/${r.name}`}>{r.owner}/{r.name}</p>
                 <p className="text-xs text-slate-500">added {ago(r.created_at)} · indexed {ago(r.indexed_at)}</p>
               </div>
               <StatusBadge repo={r} />
@@ -78,7 +78,7 @@ export default function Dashboard() {
             {r.status === "ready" && (
               <p className="mt-3 text-slate-400">{r.file_count} files · {r.chunk_count.toLocaleString()} chunks · {Object.keys(r.languages).slice(0, 3).join(", ")}</p>
             )}
-            {r.status === "failed" && <p className="mt-3 text-red-300">{r.error_message}</p>}
+            {r.status === "failed" && <p className="mt-3 break-words text-red-300">{r.error_message}</p>}
             <div className="mt-4 flex gap-2">
               {r.status === "ready" && <Link href={`/repositories/${r.id}`} className="rounded bg-emerald-600 px-3 py-1 text-xs font-medium">Open workspace</Link>}
               {(r.status === "ready" || r.status === "failed") && (

@@ -50,6 +50,8 @@ npm run dev
 Optional Postgres + pgvector (needed from Day 3): `docker compose up -d`, then set `DATABASE_URL` in `.env`.
 
 ## Tests
+**Real-browser flow:** with backend and `next start` running, `cd e2e && npm i playwright-core @sparticuz/chromium && node browser_flow.mjs http://localhost:3000 ./shots` drives signup, indexing, workspace, logout/login, re-index, error states and a mobile viewport in real Chromium.
+
 ```bash
 cd backend && source .venv/bin/activate && python -m pytest -q
 ```
@@ -105,7 +107,7 @@ Repository content is treated as untrusted data. Secrets live only in `.env` (gi
 ## Limitations (current)
 - Sessions, the login limiter and background jobs are in-process: single backend instance only. No email verification or password reset yet. No CSRF token (relies on SameSite=Lax + JSON-only API).
 - Background jobs use FastAPI background tasks (not a durable queue); interrupted jobs are marked failed and must be retried.
-- No browser-automation tests: the UI is verified by `next build`, middleware behaviour and an HTTP end-to-end script (`backend/scripts/e2e_flow.py`), not by a real browser session.
+- Browser E2E (`e2e/browser_flow.mjs`, Playwright + Chromium) covers the main flow, but it is a script you run manually (needs `playwright-core` and `@sparticuz/chromium`), not part of CI. There are no component-level frontend unit tests. Also see `backend/scripts/e2e_flow.py` (HTTP-level).
 - The question-answering box in the workspace is an honest placeholder; usage tracking beyond counts is not implemented.
 - Ingestion is synchronous (the request blocks while cloning); background jobs are not implemented.
 - Public repositories only; private repo support is not implemented.
