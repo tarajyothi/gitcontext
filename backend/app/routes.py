@@ -2,14 +2,16 @@
 from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .db import get_session
+from .embeddings import get_embedder
+from .indexing import chunk_dict, index_repository, vector_search
 from .ingest.cloner import clone_repo
 from .ingest.service import ingest_repository
-from .models import RepoFile, Repository
+from .models import Chunk, RepoFile, Repository
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
 
@@ -62,3 +64,32 @@ def list_files(repo_id: int, limit: int = 200, offset: int = 0, session: Session
     return [{"path": f.path, "language": f.language, "size_bytes": f.size_bytes,
              "modified_at": f.modified_at.isoformat() if f.modified_at else None,
              "indexed_at": f.indexed_at.isoformat() if f.indexed_at else None} for f in rows]
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=1000)
+    k: int = Field(default=5, ge=1, le=50)
+
+
+@router.post("/{repo_id}/index")
+def index(repo_id: int, session: Session = Depends(get_session), embedder=Depends(get_embedder)):
+    """Chunk every indexable file and store embeddings. Idempotent: replaces previous chunks."""
+    return index_repository(session, repo_id, embedder)
+
+
+@router.get("/{repo_id}/chunks")
+def list_chunks(repo_id: int, path: str | None = None, limit: int = 50, offset: int = 0,
+                session: Session = Depends(get_session)):
+    _get(session, repo_id)
+    q = select(Chunk).where(Chunk.repository_id == repo_id)
+    if path:
+        q = q.where(Chunk.file_path == path)
+    q = q.order_by(Chunk.file_path, Chunk.start_line).limit(min(limit, 500)).offset(max(offset, 0))
+    return [chunk_dict(c) for c in session.scalars(q)]
+
+
+@router.post("/{repo_id}/search")
+def search(repo_id: int, body: SearchRequest, session: Session = Depends(get_session), embedder=Depends(get_embedder)):
+    """Vector-only search over stored embeddings (verification endpoint; hybrid retrieval is Day 4)."""
+    _get(session, repo_id)
+    return vector_search(session, repo_id, body.query, body.k, embedder)

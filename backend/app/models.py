@@ -5,7 +5,7 @@ Embeddings are intentionally NOT here yet. Day 3 adds a pgvector column
 """
 from datetime import datetime, timezone
 
-from sqlalchemy import (CheckConstraint, DateTime, ForeignKey, Index, Integer,
+from sqlalchemy import (CheckConstraint, DateTime, ForeignKey, Index, Integer, LargeBinary,
                         String, Text, UniqueConstraint)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -72,3 +72,15 @@ class Chunk(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     file: Mapped[RepoFile] = relationship(back_populates="chunks")
+
+
+class ChunkEmbedding(Base):
+    """One float32 vector per chunk. Portable (SQLite/Postgres); searched with cosine similarity.
+    A pgvector column can replace `vector` later without changing callers."""
+    __tablename__ = "chunk_embeddings"
+
+    chunk_id: Mapped[int] = mapped_column(ForeignKey("chunks.id", ondelete="CASCADE"), primary_key=True)
+    repository_id: Mapped[int] = mapped_column(ForeignKey("repositories.id", ondelete="CASCADE"), index=True)
+    model: Mapped[str] = mapped_column(String(100))
+    dim: Mapped[int] = mapped_column(Integer)
+    vector: Mapped[bytes] = mapped_column(LargeBinary)

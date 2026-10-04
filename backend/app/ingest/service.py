@@ -18,6 +18,10 @@ log = logging.getLogger("gitcontext.ingest")
 Cloner = Callable[[str, Path], CloneResult]
 
 
+def workspace_path(owner: str, name: str) -> Path:
+    return Path(get_settings().workspace_dir).resolve() / re.sub(r"[^A-Za-z0-9_.-]", "_", f"{owner}__{name}")
+
+
 def ingest_repository(session: Session, raw_url: str, cloner: Cloner = clone_repo) -> Repository:
     owner, name = parse_github_url(raw_url)  # raises invalid_url before anything is stored
     url = f"https://github.com/{owner}/{name}"
@@ -28,9 +32,8 @@ def ingest_repository(session: Session, raw_url: str, cloner: Cloner = clone_rep
     repo.status, repo.error_message = "indexing", None
     session.commit()
 
-    workspace = Path(get_settings().workspace_dir).resolve()
-    dest = workspace / re.sub(r"[^A-Za-z0-9_.-]", "_", f"{owner}__{name}")
-    assert workspace in dest.parents  # never write outside the workspace
+    dest = workspace_path(owner, name)
+    assert Path(get_settings().workspace_dir).resolve() in dest.parents  # never write outside the workspace
     try:
         clone = cloner(url + ".git", dest)
         if clone.commit_sha is None:

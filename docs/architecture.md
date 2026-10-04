@@ -21,3 +21,15 @@
 
 ## Security stance
 Repository content is untrusted: it is passed to the LLM strictly as quoted data, never as instructions. Secrets only via environment variables.
+
+## Day 3 decisions: chunking & embeddings
+| Decision | Why |
+|---|---|
+| Chunk = exact contiguous line range; `content == lines[start-1:end]` | Citations must map back to real lines; enforced by tests and a real-repo verifier |
+| Python via `ast`; JS/TS via brace-aware scanner; Markdown by heading | Semantic units (function/class/method/section) without heavy parser dependencies |
+| Large class -> per-method chunks (`Class.method`); oversized chunk -> `(part N)` | Keeps chunks small enough to embed and cite precisely |
+| Leading comments/decorators attach to the symbol | Preserves docs and behaviour-changing decorators |
+| Parse failure -> line-window fallback (never crash indexing) | Robustness on arbitrary repos |
+| Embedding text = path + symbol + kind + code; stored `content` stays exact | Embeddings get location context without corrupting citations |
+| Embeddings in `chunk_embeddings` BLOB, NumPy cosine | No new infrastructure; portable SQLite/Postgres; swap to pgvector later |
+| Default hashing embedder, pluggable OpenAI-compatible provider | Works offline and reproducibly; sandbox had no embedding API access/key |

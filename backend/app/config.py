@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     workspace_dir: str = "./workspace"
     cors_origins: str = "http://localhost:3000"
     log_level: str = "INFO"
+    # "hashing" = local deterministic baseline (no key needed); "openai" = any OpenAI-compatible /embeddings API
+    embedding_provider: str = "hashing"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_base_url: str = "https://api.openai.com/v1"
+    embedding_api_key: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

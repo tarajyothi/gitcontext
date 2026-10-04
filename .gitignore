@@ -13,3 +13,4 @@ node_modules/
 out/
 workspace/
 .DS_Store
+verify_report.json

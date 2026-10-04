@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
 from .db import SessionLocal, init_db
+from .embeddings import EmbeddingError
 from .ingest.errors import IngestError
 from .routes import router
 
@@ -54,6 +55,11 @@ async def request_id_middleware(request: Request, call_next):
 @app.exception_handler(IngestError)
 async def ingest_exc(request: Request, exc: IngestError):
     return JSONResponse(error_body(exc.code, exc.message, request.state.request_id), status_code=exc.status)
+
+
+@app.exception_handler(EmbeddingError)
+async def embedding_exc(request: Request, exc: EmbeddingError):
+    return JSONResponse(error_body("embedding_unavailable", str(exc), request.state.request_id), status_code=502)
 
 
 @app.exception_handler(StarletteHTTPException)
