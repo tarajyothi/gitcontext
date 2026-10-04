@@ -1,0 +1,612 @@
+{
+ "repository": "https://github.com/pallets/click",
+ "commit": "06b2a67",
+ "note": "Authored from the source BEFORE any retrieval code existed. A retrieved chunk is correct if its file matches and its symbol (minus ' (part N)') is in the list. dev = used for tuning, test = held out.",
+ "questions": [
+  {
+   "id": "q01",
+   "split": "dev",
+   "type": "identifier",
+   "question": "Where is the Context class defined?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Context"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q02",
+   "split": "dev",
+   "type": "concept",
+   "question": "How does a command get invoked once its context is created?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Command.invoke",
+      "Context.invoke"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q03",
+   "split": "dev",
+   "type": "behavior",
+   "question": "Which exception is raised when a required parameter is missing?",
+   "expected": [
+    {
+     "file": "src/click/exceptions.py",
+     "symbols": [
+      "MissingParameter"
+     ]
+    },
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Parameter.process_value"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q04",
+   "split": "dev",
+   "type": "concept",
+   "question": "How does click generate the help text for a command?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Command.get_help",
+      "Command.format_help"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q05",
+   "split": "dev",
+   "type": "concept",
+   "question": "Which function prompts the user to type a value?",
+   "expected": [
+    {
+     "file": "src/click/termui.py",
+     "symbols": [
+      "prompt"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q06",
+   "split": "dev",
+   "type": "concept",
+   "question": "How do I ask the user a yes or no confirmation question?",
+   "expected": [
+    {
+     "file": "src/click/termui.py",
+     "symbols": [
+      "confirm"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q07",
+   "split": "dev",
+   "type": "concept",
+   "question": "How is a progress bar drawn on the terminal?",
+   "expected": [
+    {
+     "file": "src/click/_termui_impl.py",
+     "symbols": [
+      "ProgressBar.render_progress",
+      "ProgressBar.format_progress_line",
+      "ProgressBar"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q08",
+   "split": "dev",
+   "type": "concept",
+   "question": "How does the Choice type validate and normalize the value it receives?",
+   "expected": [
+    {
+     "file": "src/click/types.py",
+     "symbols": [
+      "Choice.convert",
+      "Choice.normalize_choice"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q09",
+   "split": "dev",
+   "type": "concept",
+   "question": "Where are the command line arguments split into options and positional values?",
+   "expected": [
+    {
+     "file": "src/click/parser.py",
+     "symbols": [
+      "_OptionParser.parse_args",
+      "_OptionParser._process_args_for_options",
+      "_OptionParser._process_opts"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q10",
+   "split": "dev",
+   "type": "concept",
+   "question": "How can code anywhere get the currently active context?",
+   "expected": [
+    {
+     "file": "src/click/globals.py",
+     "symbols": [
+      "get_current_context"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q11",
+   "split": "dev",
+   "type": "concept",
+   "question": "How can I run a command in a test and capture its output?",
+   "expected": [
+    {
+     "file": "src/click/testing.py",
+     "symbols": [
+      "CliRunner.invoke",
+      "CliRunner.isolation",
+      "Result"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q12",
+   "split": "dev",
+   "type": "concept",
+   "question": "Where is bash shell completion implemented?",
+   "expected": [
+    {
+     "file": "src/click/shell_completion.py",
+     "symbols": [
+      "BashComplete"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q13",
+   "split": "dev",
+   "type": "concept",
+   "question": "Which decorator adds a --version option to a command?",
+   "expected": [
+    {
+     "file": "src/click/decorators.py",
+     "symbols": [
+      "version_option"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q14",
+   "split": "dev",
+   "type": "concept",
+   "question": "How does a group find the subcommand that matches a name typed by the user?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Group.get_command",
+      "Group.resolve_command"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q15",
+   "split": "dev",
+   "type": "behavior",
+   "question": "How is a password option hidden while the user types it?",
+   "expected": [
+    {
+     "file": "src/click/decorators.py",
+     "symbols": [
+      "password_option"
+     ]
+    },
+    {
+     "file": "src/click/termui.py",
+     "symbols": [
+      "hidden_prompt_func",
+      "prompt"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q16",
+   "split": "dev",
+   "type": "concept",
+   "question": "Where is long help text wrapped to the terminal width?",
+   "expected": [
+    {
+     "file": "src/click/formatting.py",
+     "symbols": [
+      "wrap_text",
+      "HelpFormatter.write_text"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q17",
+   "split": "dev",
+   "type": "concept",
+   "question": "How does click print text with colors and styles?",
+   "expected": [
+    {
+     "file": "src/click/termui.py",
+     "symbols": [
+      "style",
+      "secho"
+     ]
+    },
+    {
+     "file": "src/click/utils.py",
+     "symbols": [
+      "echo"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q18",
+   "split": "dev",
+   "type": "concept",
+   "question": "How does click open a file lazily so it is only created when written to?",
+   "expected": [
+    {
+     "file": "src/click/types.py",
+     "symbols": [
+      "File.convert"
+     ]
+    },
+    {
+     "file": "src/click/utils.py",
+     "symbols": [
+      "_LazyFile"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q19",
+   "split": "dev",
+   "type": "behavior",
+   "question": "What happens when the user passes an option that does not exist?",
+   "expected": [
+    {
+     "file": "src/click/exceptions.py",
+     "symbols": [
+      "NoSuchOption"
+     ]
+    },
+    {
+     "file": "src/click/parser.py",
+     "symbols": [
+      "_OptionParser._match_long_opt"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q20",
+   "split": "dev",
+   "type": "behavior",
+   "question": "How are environment variables used as the value of an option?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Parameter.resolve_envvar_value",
+      "Option.resolve_envvar_value",
+      "Parameter.value_from_envvar"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q21",
+   "split": "dev",
+   "type": "behavior",
+   "question": "How does a parameter work out its default value?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Parameter.get_default",
+      "Option.get_default"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q22",
+   "split": "dev",
+   "type": "concept",
+   "question": "How is the usage line shown in the help built?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Command.collect_usage_pieces",
+      "Context.command_path",
+      "Command.format_usage"
+     ]
+    },
+    {
+     "file": "src/click/formatting.py",
+     "symbols": [
+      "HelpFormatter.write_usage"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q23",
+   "split": "dev",
+   "type": "behavior",
+   "question": "What exit code is used when a command aborts or the user presses Ctrl-C?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Command.main"
+     ]
+    },
+    {
+     "file": "src/click/exceptions.py",
+     "symbols": [
+      "Abort"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q24",
+   "split": "dev",
+   "type": "identifier",
+   "question": "HelpFormatter.write_dl",
+   "expected": [
+    {
+     "file": "src/click/formatting.py",
+     "symbols": [
+      "HelpFormatter.write_dl"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q25",
+   "split": "test",
+   "type": "concept",
+   "question": "How can I run a callback after all the subcommands of a group have finished?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Group.result_callback"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q26",
+   "split": "test",
+   "type": "concept",
+   "question": "How does click find the per-user application config directory?",
+   "expected": [
+    {
+     "file": "src/click/utils.py",
+     "symbols": [
+      "get_app_dir"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q27",
+   "split": "test",
+   "type": "behavior",
+   "question": "How is an option that takes a fixed number of values with different types handled?",
+   "expected": [
+    {
+     "file": "src/click/types.py",
+     "symbols": [
+      "Tuple"
+     ]
+    },
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Parameter.type_cast_value"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q28",
+   "split": "test",
+   "type": "concept",
+   "question": "How does click page long output through a pager program?",
+   "expected": [
+    {
+     "file": "src/click/termui.py",
+     "symbols": [
+      "echo_via_pager"
+     ]
+    },
+    {
+     "file": "src/click/_termui_impl.py",
+     "symbols": [
+      "_pipepager",
+      "get_pager_file"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q29",
+   "split": "test",
+   "type": "identifier",
+   "question": "Which exception lets a command exit with a specific code?",
+   "expected": [
+    {
+     "file": "src/click/exceptions.py",
+     "symbols": [
+      "Exit"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q30",
+   "split": "test",
+   "type": "behavior",
+   "question": "How are arguments that accept an unlimited number of values processed?",
+   "expected": [
+    {
+     "file": "src/click/parser.py",
+     "symbols": [
+      "_OptionParser._process_args_for_args",
+      "_unpack_args",
+      "_Argument"
+     ]
+    },
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Argument"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q31",
+   "split": "test",
+   "type": "concept",
+   "question": "How do I pass a shared object from a group down to its subcommands?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Context.ensure_object",
+      "Context.find_object"
+     ]
+    },
+    {
+     "file": "src/click/decorators.py",
+     "symbols": [
+      "pass_obj",
+      "make_pass_decorator"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q32",
+   "split": "test",
+   "type": "behavior",
+   "question": "How are strings like yes, no, true and false converted to a boolean?",
+   "expected": [
+    {
+     "file": "src/click/types.py",
+     "symbols": [
+      "BoolParamType"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q33",
+   "split": "test",
+   "type": "concept",
+   "question": "How does click open the user's text editor to edit some text?",
+   "expected": [
+    {
+     "file": "src/click/termui.py",
+     "symbols": [
+      "edit"
+     ]
+    },
+    {
+     "file": "src/click/_termui_impl.py",
+     "symbols": [
+      "Editor"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q34",
+   "split": "test",
+   "type": "concept",
+   "question": "How are the subcommands listed in a group's help output?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Group.format_commands"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q35",
+   "split": "test",
+   "type": "concept",
+   "question": "Where is the short one-line help for a command derived from its docstring?",
+   "expected": [
+    {
+     "file": "src/click/core.py",
+     "symbols": [
+      "Command.get_short_help_str"
+     ]
+    },
+    {
+     "file": "src/click/utils.py",
+     "symbols": [
+      "_make_default_short_help"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "q36",
+   "split": "test",
+   "type": "identifier",
+   "question": "split_arg_string",
+   "expected": [
+    {
+     "file": "src/click/shell_completion.py",
+     "symbols": [
+      "split_arg_string"
+     ]
+    }
+   ]
+  }
+ ]
+}
