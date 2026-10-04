@@ -15,3 +15,5 @@ workspace/
 .DS_Store
 verify_report.json
 e2e_report.json
+tsconfig.tsbuildinfo
+next-env.d.ts
