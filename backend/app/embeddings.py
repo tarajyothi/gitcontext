@@ -54,6 +54,7 @@ class HashingEmbedder:
     """
     dim = 384
     name = "hashing-v1-384"
+    retrieval_weight = 0.15  # lexical baseline (dev-split R@5 0.17) largely duplicates BM25: low weight in fusion
 
     def embed(self, texts: list[str]) -> np.ndarray:
         out = np.zeros((len(texts), self.dim), dtype=np.float32)
@@ -74,6 +75,7 @@ class OpenAICompatEmbedder:
         if not api_key:
             raise EmbeddingError("EMBEDDING_API_KEY is not set")
         self.name = f"openai:{model}"
+        self.retrieval_weight = 1.0  # neural embeddings: full weight
         self._model, self._url = model, base_url.rstrip("/") + "/embeddings"
         self._client = httpx.Client(timeout=30, transport=transport, headers={"Authorization": f"Bearer {api_key}"})
 

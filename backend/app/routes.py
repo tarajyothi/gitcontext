@@ -1,6 +1,7 @@
 """Repository + usage API. Every route is scoped to the caller's workspace."""
 import shutil
 from collections import Counter
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Response
 from pydantic import BaseModel, Field
@@ -11,7 +12,8 @@ from .auth import get_workspace, owned_repo
 from .config import get_settings
 from .db import get_session
 from .embeddings import get_embedder
-from .indexing import chunk_dict, index_repository, vector_search
+from .indexing import chunk_dict, index_repository
+from .retrieval import search as hybrid_search
 from .ingest.cloner import clone_repo
 from .ingest.errors import IngestError
 from .ingest.service import create_repository, run_pipeline, workspace_path
@@ -43,9 +45,20 @@ class IngestRequest(BaseModel):
     url: str = Field(max_length=500)
 
 
+class Filters(BaseModel):
+    language: list[str] | None = Field(default=None, max_length=10)
+    path_prefix: str | None = Field(default=None, max_length=300)
+    kinds: list[str] | None = Field(default=None, max_length=10)
+    exclude_tests: bool = False
+    exclude_docs: bool = False
+
+
 class SearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=1000)
     k: int = Field(default=5, ge=1, le=50)
+    mode: Literal["hybrid", "vector", "bm25"] = "hybrid"
+    rerank: bool = True
+    filters: Filters | None = None
 
 
 @router.post("", status_code=202)
@@ -121,8 +134,12 @@ def list_chunks(path: str | None = None, limit: int = 50, offset: int = 0, repo:
 @router.post("/{repo_id}/search")
 def search(body: SearchRequest, repo: Repository = Depends(owned_repo), session: Session = Depends(get_session),
            embedder=Depends(get_embedder)):
-    """Vector-only search (verification endpoint; hybrid retrieval + RAG come later)."""
-    return vector_search(session, repo.id, body.query, body.k, embedder)
+    """Hybrid code search (vector + BM25 + exact identifiers -> RRF -> dedupe -> rerank). Returns cited chunks."""
+    hits = hybrid_search(session, repo.id, body.query, body.k, embedder, body.mode,
+                         body.filters.model_dump() if body.filters else None, body.rerank)
+    if hits is None:
+        raise IngestError("not_indexed", "This repository has no indexed chunks yet.", 409)
+    return hits
 
 
 @usage_router.get("/usage")
