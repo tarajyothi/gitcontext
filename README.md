@@ -34,7 +34,7 @@ cp .env.example .env
 # Backend
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt   # dev tools (ruff, bandit): requirements-dev.txt
 uvicorn app.main:app --reload --port 8000
 # → http://localhost:8000/health   (interactive docs: /docs)
 
