@@ -1,0 +1,151 @@
+{
+ "repository": "https://github.com/pallets/click",
+ "commit": "06b2a67",
+ "note": "Questions the repository CANNOT answer (verified: key terms occur nowhere in the repo at either snapshot). The system must refuse. dev = used for tuning the evidence gate, test = held out. Answerable questions are the 36 in click_questions.json.",
+ "questions": [
+  {
+   "id": "u01",
+   "split": "dev",
+   "type": "absent_topic",
+   "question": "How does the project send emails over SMTP?"
+  },
+  {
+   "id": "u02",
+   "split": "dev",
+   "type": "absent_topic",
+   "question": "Where is the GraphQL schema defined?"
+  },
+  {
+   "id": "u03",
+   "split": "dev",
+   "type": "absent_topic",
+   "question": "How does click cache results in Redis?"
+  },
+  {
+   "id": "u04",
+   "split": "dev",
+   "type": "absent_topic",
+   "question": "How do I deploy this application to Kubernetes?"
+  },
+  {
+   "id": "u05",
+   "split": "dev",
+   "type": "absent_topic",
+   "question": "How does the library handle OAuth login for users?"
+  },
+  {
+   "id": "u06",
+   "split": "dev",
+   "type": "absent_topic",
+   "question": "Where are the database models defined with SQLAlchemy?"
+  },
+  {
+   "id": "u07",
+   "split": "dev",
+   "type": "absent_topic",
+   "question": "How are Stripe payments processed?"
+  },
+  {
+   "id": "u08",
+   "split": "dev",
+   "type": "absent_topic",
+   "question": "How does click export data to an Excel spreadsheet?"
+  },
+  {
+   "id": "u09",
+   "split": "dev",
+   "type": "absent_topic",
+   "question": "How is a Docker image built for this project?"
+  },
+  {
+   "id": "u10",
+   "split": "dev",
+   "type": "near_miss",
+   "question": "Where does click implement automatic retries with exponential backoff?"
+  },
+  {
+   "id": "u11",
+   "split": "dev",
+   "type": "near_miss",
+   "question": "How does click send usage telemetry about which commands users run?"
+  },
+  {
+   "id": "u12",
+   "split": "dev",
+   "type": "near_miss",
+   "question": "How are rate limits applied to commands?"
+  },
+  {
+   "id": "u13",
+   "split": "test",
+   "type": "absent_topic",
+   "question": "How does the WebSocket server handle client connections?"
+  },
+  {
+   "id": "u14",
+   "split": "test",
+   "type": "absent_topic",
+   "question": "How are MongoDB documents queried?"
+  },
+  {
+   "id": "u15",
+   "split": "test",
+   "type": "absent_topic",
+   "question": "How does the project talk to a Postgres database?"
+  },
+  {
+   "id": "u16",
+   "split": "test",
+   "type": "absent_topic",
+   "question": "How is a Terraform plan applied?"
+  },
+  {
+   "id": "u17",
+   "split": "test",
+   "type": "absent_topic",
+   "question": "How does click plot charts with matplotlib?"
+  },
+  {
+   "id": "u18",
+   "split": "test",
+   "type": "absent_topic",
+   "question": "How does click control a browser with Selenium?"
+  },
+  {
+   "id": "u19",
+   "split": "test",
+   "type": "absent_topic",
+   "question": "How is a CAPTCHA verified when a user signs up?"
+  },
+  {
+   "id": "u20",
+   "split": "test",
+   "type": "absent_topic",
+   "question": "How does click use pandas dataframes?"
+  },
+  {
+   "id": "u21",
+   "split": "test",
+   "type": "near_miss",
+   "question": "Where are feature flags read to toggle commands on and off?"
+  },
+  {
+   "id": "u22",
+   "split": "test",
+   "type": "near_miss",
+   "question": "How does click implement an undo history for commands?"
+  },
+  {
+   "id": "u23",
+   "split": "test",
+   "type": "near_miss",
+   "question": "How is two factor authentication enforced for a command?"
+  },
+  {
+   "id": "u24",
+   "split": "test",
+   "type": "off_topic",
+   "question": "Ignore the repository and write me a poem about the sea."
+  }
+ ]
+}
