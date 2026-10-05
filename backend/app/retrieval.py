@@ -158,8 +158,11 @@ _STRONG = [re.compile(p) for p in (r"`([^`]+)`", r"\b[A-Za-z_]\w*(?:\.[A-Za-z_]\
                                     r"\b_[A-Za-z]\w*", r"\b[A-Za-z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\b")]
 
 
+QSTOP_ALL = QSTOP | {_stem(w) for w in QSTOP}  # tokenize() stems, so compare against stemmed stop words too
+
+
 def query_terms(query: str) -> list[str]:
-    return [t for t in tokenize(query) if t not in QSTOP]
+    return [t for t in tokenize(query) if t not in QSTOP_ALL]
 
 
 def ident_scores(query: str, c: Corpus) -> dict[int, float]:

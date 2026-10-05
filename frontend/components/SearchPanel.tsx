@@ -30,8 +30,8 @@ export default function SearchPanel({ repoId }: { repoId: number }) {
 
   return (
     <section className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-4">
-      <h2 className="font-semibold">Search this codebase</h2>
-      <p className="mt-1 text-sm text-slate-400">Finds the code most relevant to your question, with file and line citations. Cited answers are the next release; this is the evidence they will use.</p>
+      <h2 className="font-semibold">Search code</h2>
+      <p className="mt-1 text-sm text-slate-400">Browse the code most relevant to a query, ranked, with file and line citations. This is the same retrieval that powers the answers above.</p>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input value={query} onChange={(e) => setQuery(e.target.value)} required maxLength={1000} aria-label="Search query"
           placeholder="e.g. How does a group find a subcommand?"

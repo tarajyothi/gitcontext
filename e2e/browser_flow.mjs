@@ -109,6 +109,37 @@ await step("11b search the codebase from the workspace (real results with citati
   await page.waitForTimeout(800);
   return texts.slice(0, 3).map((t) => t.split("\n")[0]).join(" | ");
 });
+await step("11c ask an answerable question: cited answer with real source lines", async () => {
+  await page.getByLabel("Your question").fill("How do I ask the user a yes or no confirmation question?");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  const answer = page.locator("[data-testid=answer]");
+  await answer.waitFor();
+  const cites = await page.locator("[data-testid=citation]").allInnerTexts();
+  expect(cites.length >= 1 && cites.every((t) => /\.\w+:\d+-\d+/.test(t)), "citations missing or malformed");
+  expect(cites.some((t) => /termui\.py/.test(t) && /confirm/.test(t)), "confirm() not cited: " + cites.map((t) => t.split("\n")[0]).join(" | "));
+  expect(/\[1\]/.test(await answer.innerText()), "answer text has no [n] citation marker");
+  await shot("05c-answer");
+  return cites.length + " citations; " + cites[0].split("\n")[0];
+});
+await step("11d ask an unanswerable question: honest refusal, no citations", async () => {
+  await page.getByLabel("Your question").fill("How are Stripe payments processed?");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  const refusal = page.locator("[data-testid=refusal]");
+  await refusal.waitFor();
+  const t = await refusal.innerText();
+  expect(/couldn't find enough evidence/.test(t) && /stripe/i.test(t), "refusal text: " + t);
+  expect((await page.locator("[data-testid=citation]").count()) === 0, "refusal must not show citations");
+  await shot("05d-refusal");
+  return t.split("\n")[0];
+});
+await step("11e question history persists across reload", async () => {
+  await page.reload();
+  await page.getByRole("heading", { name: "pallets/click" }).waitFor();
+  const h = page.locator("[data-testid=history]");
+  await h.waitFor();
+  const t = await h.innerText();
+  expect(/Stripe/.test(t) && /confirmation/.test(t) && /no evidence/.test(t) && /answered/.test(t), "history: " + t.replace(/\n/g, " | "));
+});
 await step("12 log out -> /login", async () => {
   await page.getByRole("button", { name: "Log out" }).click();
   await page.waitForURL("**/login");

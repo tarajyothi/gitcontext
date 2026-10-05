@@ -1,5 +1,7 @@
 """Repository + usage API. Every route is scoped to the caller's workspace."""
+import json
 import shutil
+from datetime import timedelta
 from collections import Counter
 from typing import Literal
 
@@ -8,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .answering import answer_question, get_generator
 from .auth import get_workspace, owned_repo
 from .config import get_settings
 from .db import get_session
@@ -18,7 +21,7 @@ from .retrieval import search as hybrid_search
 from .ingest.cloner import clone_repo
 from .ingest.errors import IngestError
 from .ingest.service import create_repository, run_pipeline, workspace_path
-from .models import Chunk, RepoFile, Repository, Workspace
+from .models import Chunk, Question, RepoFile, Repository, Workspace, utcnow
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
 usage_router = APIRouter(tags=["usage"])
@@ -145,10 +148,46 @@ def search(body: SearchRequest, repo: Repository = Depends(owned_repo), session:
     return hits
 
 
+class AskRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=1000)
+
+
+def _asked_today(session: Session, ws: Workspace) -> int:
+    since = utcnow() - timedelta(days=1)
+    return session.scalar(select(func.count()).select_from(Question).where(Question.workspace_id == ws.id, Question.created_at >= since)) or 0
+
+
+@router.post("/{repo_id}/ask")
+def ask(body: AskRequest, repo: Repository = Depends(owned_repo), ws: Workspace = Depends(get_workspace),
+        session: Session = Depends(get_session), embedder=Depends(get_embedder), generator=Depends(get_generator)):
+    """Answer a question using only retrieved evidence, with verified citations; refuses when evidence is missing."""
+    if repo.status != "ready":
+        raise IngestError("repo_not_ready", "Wait until this repository finishes indexing.", 409)
+    limit = get_settings().daily_question_limit
+    if _asked_today(session, ws) >= limit:
+        raise IngestError("daily_limit_reached", f"Daily limit of {limit} questions reached. Try again tomorrow.", 429)
+    result = answer_question(session, repo.id, body.question.strip(), embedder, generator)
+    row = Question(workspace_id=ws.id, repository_id=repo.id, question=body.question.strip(), status=result["status"],
+                   generation=result["generation"], coverage=result["evidence_coverage"], answer=result["answer"],
+                   citations_json=json.dumps(result["citations"]))
+    session.add(row)
+    session.commit()
+    return {"question_id": row.id, "question": row.question, **result}
+
+
+@router.get("/{repo_id}/questions")
+def list_questions(limit: int = 20, repo: Repository = Depends(owned_repo), session: Session = Depends(get_session)):
+    q = select(Question).where(Question.repository_id == repo.id).order_by(Question.id.desc()).limit(min(max(limit, 1), 100))
+    return [{"question_id": x.id, "question": x.question, "status": x.status, "generation": x.generation, "answer": x.answer,
+             "citations": json.loads(x.citations_json), "evidence_coverage": x.coverage, "created_at": iso(x.created_at)}
+            for x in session.scalars(q)]
+
+
 @usage_router.get("/usage")
 def usage(ws: Workspace = Depends(get_workspace), session: Session = Depends(get_session)):
-    """Real counts only. Question/token usage is not implemented yet and is reported as null."""
+    """Real counts only (questions asked in the last 24 hours)."""
     repos = session.scalars(select(Repository).where(Repository.workspace_id == ws.id)).all()
     files = session.scalar(select(func.count()).select_from(RepoFile).join(Repository).where(Repository.workspace_id == ws.id))
     return {"plan": "free", "repositories": {"used": len(repos), "limit": get_settings().max_repos_per_workspace},
-            "files_indexed": files, "chunks_indexed": sum(r.chunk_count for r in repos), "questions": None}
+            "files_indexed": files, "chunks_indexed": sum(r.chunk_count for r in repos),
+            "questions": {"used_today": _asked_today(session, ws), "limit": get_settings().daily_question_limit}}

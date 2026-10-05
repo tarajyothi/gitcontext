@@ -2,7 +2,7 @@
 
 **A codebase intelligence copilot.** Connect a GitHub repository, and ask questions about it. Answers are generated from retrieved code and cite exact file paths and line ranges. When the evidence isn't there, GitContext says so instead of guessing.
 
-> **Status:** SaaS core + hybrid code search work: accounts, per-user workspaces, background indexing, and a search panel that returns cited code (file + exact lines). **Not built yet:** question answering with generated, cited answers, and deployment. Retrieval is benchmarked ([results and caveats](docs/benchmarks/retrieval.md)); answer quality is **NOT MEASURED YET**.
+> **Status:** SaaS core, hybrid code search and evidence-grounded question answering work: ask a question, get cited code (file + exact lines), or an honest refusal when the repository has no evidence. Answers are **extractive summaries** by default; LLM-written answers are implemented behind a key but **not yet measured**. Not built: deployment. Benchmarks: [retrieval](docs/benchmarks/retrieval.md), [answering](docs/benchmarks/answering.md).
 
 ## Problem
 Developers constantly join unfamiliar repositories. Grep finds strings but not meaning; generic chatbots hallucinate about code they can't see. GitContext grounds every answer in the actual repository and shows its evidence.
@@ -71,13 +71,22 @@ All routes except `/health`, `/auth/signup` and `/auth/login` require a session 
 | GET | `/repositories/{id}/files` · `/chunks` | Indexed files · chunks with exact line ranges |
 | POST | `/repositories/{id}/index` | Re-chunk/re-embed without re-cloning |
 | POST | `/repositories/{id}/search` | Hybrid code search. Body: `{"query", "k": 1-50, "mode": "hybrid"\|"vector"\|"bm25", "rerank": true, "filters": {"language": [], "path_prefix": "", "kinds": [], "exclude_tests": false, "exclude_docs": false}}`. Returns chunks with `file_path`, `start_line`, `end_line`, `symbol`, `kind`, `content`, `score` and `signals` (vector rank, keyword rank, identifier match, rerank adjustment) |
-| GET | `/usage` | Real counts: repositories used/limit, files, chunks. `questions: null` (not implemented) |
+| POST | `/repositories/{id}/ask` | `{"question"}` (3-1000 chars). Returns `status` (`answered` \| `insufficient_evidence`), `answer` with `[n]` markers, `generation` (`extractive` \| `llm`), `citations` (file, exact lines, symbol, snippet), `evidence_coverage`, `warnings`, and `closest` code on refusal. 429 after `DAILY_QUESTION_LIMIT` questions/24 h |
+| GET | `/repositories/{id}/questions` | Question history for the repository (answer + citations stored) |
+| GET | `/usage` | Real counts: repositories used/limit, files, chunks. questions asked in the last 24 h vs limit |
 
 **Repository states:** `pending -> indexing (stage: cloning | scanning | embedding) -> ready | failed`. Stages are written by the backend as work happens; the UI polls them. A server restart marks interrupted jobs `failed` with a retry message.
 
 **Errors:** `invalid_url` (422), `duplicate_repository` (409), `repo_limit_reached` (403), `not_authenticated`/`session_expired` (401), `too_many_attempts` (429). Clone/indexing failures (`repo_not_accessible`, `repo_empty`, `no_supported_files`, `repo_too_large`, timeouts) are stored on the repository as `status=failed` + `error_message`.
 
 **Ignored during scan:** `.git`, `node_modules`, build/cache dirs, binaries, lockfiles, files over 1 MB, symlinks, secret-like files (`.env*`, `*.pem`, `*.key`, `id_rsa`, ...). Max 5000 files and 50 MB of indexed source per repo.
+
+## How answers stay grounded
+1. Hybrid search retrieves chunks. 2. **Evidence gate:** if the question's distinctive terms are not found in the retrieved code, GitContext refuses and calls no generator.
+3. The generator sees only numbered, line-numbered chunks wrapped as `untrusted` data (forged `<chunk>` tags inside files are escaped).
+4. **Verifier:** an LLM answer is rejected unless it cites provided chunks, its line ranges fit, at most a third of its claims are uncited and every
+`backticked` identifier exists in the evidence. Rejected or failed LLM calls fall back to the extractive answer. Repository text is never treated as instructions.
+Set `LLM_PROVIDER=anthropic` and `LLM_API_KEY` to enable LLM answers (the key stays server-side).
 
 ## Authentication & authorization
 - Passwords: scrypt (N=2^14, r=8, p=1) with per-user salt; never stored or logged in plaintext.
@@ -100,7 +109,7 @@ Repository content is treated as untrusted data. Secrets live only in `.env` (gi
 - [x] Day 2: GitHub ingestion
 - [x] Day 3: Code-aware chunking + embeddings
 - [x] Day 4: Hybrid retrieval + reranking (benchmarked: held-out R@5 0.83 on one repo, see docs)
-- [ ] Day 5: RAG answering + citations
+- [x] Day 5: Evidence-grounded answering + citations + refusal (extractive measured; LLM path unmeasured)
 - [ ] Day 6: Evaluation + reliability
 - [ ] Day 7: UI + deployment
 - [ ] Day 8: Docs, demo, release

@@ -54,3 +54,13 @@ Repository content is untrusted: it is passed to the LLM strictly as quoted data
 | Heuristic reranker with transparent `signals` | No cross-encoder available offline; every adjustment is inspectable and measured in an ablation |
 | Benchmark frozen before implementation, dev/held-out split | Prevents tuning to the test set; documents limits honestly |
 | In-memory corpus cache keyed by (repo, chunk count, max chunk id, model) | Re-indexing changes chunk ids, so stale caches cannot be served |
+
+## Answering decisions
+| Decision | Why |
+|---|---|
+| Evidence gate before any generation | Refusing is cheaper and safer than generating and hoping; absent topics never reach a model |
+| Extractive answerer as default and as fallback | Faithful by construction, works offline; the LLM path can never be worse than showing the evidence |
+| Verifier on LLM output (citations, line ranges, identifiers, uncited share) | Catches the most damaging failure, invented names and unsupported claims, without trusting the model |
+| Repo text delimited, escaped (opening and closing tags), marked untrusted | Prompt-injection hygiene. A test found forged opening tags were not escaped; fixed |
+| Question history stored with answers and citations | Activity feed, daily limits, and reproducibility |
+| Unanswerable-question benchmark frozen first | Refusal quality is measurable; avoids tuning the gate to the test set |

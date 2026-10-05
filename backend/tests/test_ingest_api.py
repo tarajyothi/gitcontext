@@ -119,7 +119,7 @@ def test_usage_reports_real_counts(client, tmp_path):
     repo = connect(client)
     u = client.get("/usage").json()
     assert u["repositories"] == {"used": 1, "limit": 5} and u["files_indexed"] == 1
-    assert u["chunks_indexed"] == repo["chunk_count"] and u["questions"] is None
+    assert u["chunks_indexed"] == repo["chunk_count"] and u["questions"] == {"used_today": 0, "limit": 50}
 
 
 def test_missing_repo_and_bad_body(client):

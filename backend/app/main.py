@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
 from .db import SessionLocal, init_db
+from .answering import LLMError
 from .embeddings import EmbeddingError
 from .ingest.errors import IngestError
 from .auth import router as auth_router
@@ -68,6 +69,11 @@ async def ingest_exc(request: Request, exc: IngestError):
 @app.exception_handler(EmbeddingError)
 async def embedding_exc(request: Request, exc: EmbeddingError):
     return JSONResponse(error_body("embedding_unavailable", str(exc), request.state.request_id), status_code=502)
+
+
+@app.exception_handler(LLMError)
+async def llm_exc(request: Request, exc: LLMError):
+    return JSONResponse(error_body("llm_unavailable", "The answer service is not available right now.", request.state.request_id), status_code=503)
 
 
 @app.exception_handler(StarletteHTTPException)

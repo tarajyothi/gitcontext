@@ -9,7 +9,8 @@ from tests.test_ingest_api import local_repo
 URL = "https://github.com/acme/shop"
 ROUTES = [("get", "/repositories/{id}"), ("get", "/repositories/{id}/files"), ("get", "/repositories/{id}/chunks"),
           ("post", "/repositories/{id}/reindex"), ("post", "/repositories/{id}/index"),
-          ("post", "/repositories/{id}/search"), ("delete", "/repositories/{id}")]
+          ("post", "/repositories/{id}/search"), ("post", "/repositories/{id}/ask"), ("get", "/repositories/{id}/questions"),
+          ("delete", "/repositories/{id}")]
 
 
 @pytest.fixture()
@@ -23,7 +24,8 @@ def two_users(tmp_path, monkeypatch, new_client):
 
 
 def call(c, method, path, **kw):
-    return getattr(c, method)(path, **({"json": {"query": "f"}} if method == "post" and "search" in path else {}), **kw)
+    body = {"query": "f"} if path.endswith("/search") else {"question": "what is f"} if path.endswith("/ask") else None
+    return getattr(c, method)(path, **({"json": body} if body else {}), **kw)
 
 
 def test_owner_can_access(two_users):
