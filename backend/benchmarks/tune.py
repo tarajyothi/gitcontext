@@ -23,7 +23,7 @@ def run(vec_w, **w):
     with SessionLocal() as s:
         for q in Q:
             hits = retrieval.search(s, rid, q["question"], 10, emb, "hybrid", None, True)
-            ok = lambda h: any(h["file_path"] == e["file"] and re.sub(r" \(part \d+\)$", "", h["symbol"] or "") in e["symbols"] for e in q["expected"])
+            ok = lambda h, q=q: any(h["file_path"] == e["file"] and re.sub(r" \(part \d+\)$", "", h["symbol"] or "") in e["symbols"] for e in q["expected"])
             ranks.append(next((i + 1 for i, h in enumerate(hits) if ok(h)), None))
     n = len(ranks)
     return {"R@1": sum(r == 1 for r in ranks) / n, "R@5": sum(bool(r and r <= 5) for r in ranks) / n, "MRR": sum(1 / r for r in ranks if r) / n}

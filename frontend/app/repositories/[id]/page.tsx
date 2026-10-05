@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, ago, api, type FileRow, type Repo } from "@/lib/api";
+import SearchPanel from "@/components/SearchPanel";
 import { ErrorBanner, Shell, StatusBadge, useUser } from "@/components/ui";
 
 export default function Workspace() {
@@ -68,10 +69,7 @@ export default function Workspace() {
           <div className="mt-4 flex flex-wrap gap-2">
             {Object.entries(repo.languages).map(([l, n]) => <span key={l} className="rounded bg-slate-800 px-2 py-0.5 text-xs">{l} {n}</span>)}
           </div>
-          <section className="mt-6 rounded-lg border border-dashed border-slate-700 p-5">
-            <h2 className="font-semibold">Ask questions about this codebase</h2>
-            <p className="mt-1 text-sm text-slate-400">Evidence-backed question answering with file and line citations is the next release. This repository is indexed and ready for it.</p>
-          </section>
+          {repo.status === "ready" && <SearchPanel repoId={repo.id} />}
           <div className="mt-6 flex gap-2">
             {(repo.status === "ready" || repo.status === "failed") && <button onClick={reindex} className="rounded border border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-800">{repo.status === "failed" ? "Retry indexing" : "Re-index"}</button>}
             {repo.status !== "indexing" && <button onClick={remove} className="rounded px-3 py-1.5 text-sm text-red-400 hover:bg-red-950">Remove repository</button>}

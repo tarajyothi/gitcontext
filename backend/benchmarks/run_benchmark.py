@@ -16,7 +16,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--api", default="http://localhost:8000")
 ap.add_argument("--split", default="dev", choices=["dev", "test", "all"])
 ap.add_argument("--failures", action="store_true", help="print the top results for missed questions")
-ap.add_argument("--write-docs", action="store_true")
+ap.add_argument("--allow-drift", action="store_true", help="run even if the repo HEAD moved past the pinned commit (ground truth is revalidated)")
 a = ap.parse_args()
 
 B = json.loads((Path(__file__).parent / "click_questions.json").read_text())
@@ -33,7 +33,15 @@ for _ in range(600):
     if repo["status"] in ("ready", "failed"):
         break
     time.sleep(0.5)
-assert repo["status"] == "ready" and repo["commit_sha"].startswith(B["commit"]), f"repo not ready/pinned: {repo['status']} {repo.get('commit_sha')}"
+assert repo["status"] == "ready", f"repo not ready: {repo['status']} {repo.get('error_message')}"
+drift = not repo["commit_sha"].startswith(B["commit"])
+if drift and not a.allow_drift:
+    raise SystemExit(f"Upstream HEAD moved ({repo['commit_sha'][:7]} != pinned {B['commit']}). Re-run with --allow-drift for a robustness check.")
+inv = set()  # revalidate ground truth against what is actually indexed
+for off in range(0, repo["chunk_count"] + 500, 500):
+    inv |= {(x["file_path"], re.sub(r" \(part \d+\)$", "", x["symbol"] or "")) for x in c.get(f"/repositories/{rid}/chunks?limit=500&offset={off}").json()}
+dropped = [q["id"] for q in Q if not any((e["file"], s) in inv for e in q["expected"] for s in e["symbols"])]
+Q = [q for q in Q if q["id"] not in dropped]
 c.post(f"/repositories/{rid}/search", json={"query": "warm up", "k": 1})  # builds the in-memory index (excluded from latency)
 
 
@@ -62,7 +70,7 @@ def metrics(rows):
 
 
 results = {name: evaluate(extra) for name, extra in CONFIGS}
-print(f"\nRepository {B['repository']} @ {B['commit']} | chunks={repo['chunk_count']} | questions={len(Q)} ({a.split})\n")
+print(f"\nRepository {B['repository']} @ {repo['commit_sha'][:7]}{' (DRIFTED from pinned ' + B['commit'] + ')' if drift else ' (pinned)'} | chunks={repo['chunk_count']} | questions={len(Q)} ({a.split}){' | dropped (no valid answer left): ' + ','.join(dropped) if dropped else ''}\n")
 print(f"{'configuration':<24}{'R@1':>7}{'R@3':>7}{'R@5':>7}{'R@10':>7}{'MRR':>7}{'p50 ms':>9}{'p95 ms':>9}")
 summary = {}
 for name, rows in results.items():

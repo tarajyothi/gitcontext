@@ -11,6 +11,7 @@ from .chunking import chunk_file
 from .embeddings import Embedder
 from .ingest.errors import IngestError
 from .ingest.service import workspace_path
+from .retrieval import invalidate
 from .models import Chunk, ChunkEmbedding, RepoFile, Repository, utcnow
 
 log = logging.getLogger("gitcontext.index")
@@ -63,6 +64,7 @@ def index_repository(session: Session, repo_id: int, embedder: Embedder, batch_s
         session.add_all(ChunkEmbedding(chunk_id=c.id, repository_id=repo_id, model=embedder.name, dim=dim,
                                        vector=mat[k].tobytes()) for k, c in enumerate(batch))
     session.commit()
+    invalidate(repo_id)
     t_end = time.perf_counter()
     stats = {"repository_id": repo_id, "files_indexed": len({c.file_id for c in rows}), "chunks": len(rows),
              "embeddings": len(rows), "model": embedder.name, "dim": dim,

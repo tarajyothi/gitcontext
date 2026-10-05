@@ -30,7 +30,7 @@ QSTOP = {"how", "what", "where", "which", "when", "why", "who", "does", "do", "d
          "could", "should", "would", "i", "me", "my", "we", "you", "your", "it", "its", "this", "that", "there", "these",
          "those", "by", "on", "at", "as", "be", "been", "if", "then", "than", "so", "into", "out", "up", "about", "use",
          "used", "using", "get", "gets", "work", "works", "find", "code", "defined", "implemented", "happens", "happen",
-         "with", "when", "after", "all", "any", "an", "has", "have", "some", "like", "per", "via"}
+         "with", "after", "all", "any", "an", "has", "have", "some", "like", "per", "via"}
 DOC_WORDS = {"doc", "docs", "documentation", "readme", "changelog", "tutorial", "guide", "example", "examples"}
 _TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec)(/|$)|(^|/)test_[^/]*$|_test\.[a-z]+$|\.(test|spec)\.[a-z]+$")
@@ -108,9 +108,18 @@ _cache: "OrderedDict[tuple, Corpus]" = OrderedDict()
 _lock = threading.Lock()
 
 
+def invalidate(repo_id: int) -> None:
+    """Drop cached search indexes for a repository (called on re-index and delete)."""
+    with _lock:
+        for k in [k for k in _cache if k[0] == repo_id]:
+            del _cache[k]
+
+
 def get_corpus(session: Session, repo_id: int, embedder: Embedder) -> Corpus:
-    n, mx = session.execute(select(func.count(), func.max(Chunk.id)).where(Chunk.repository_id == repo_id)).one()
-    key = (repo_id, n, mx, embedder.name)
+    # SQLite reuses row ids after deletes, so ids alone are not a safe version stamp: add the newest insert time.
+    n, mx, stamp = session.execute(select(func.count(), func.max(Chunk.id), func.max(Chunk.created_at))
+                                   .where(Chunk.repository_id == repo_id)).one()
+    key = (repo_id, n, mx, str(stamp), embedder.name)
     with _lock:
         if key in _cache:
             _cache.move_to_end(key)

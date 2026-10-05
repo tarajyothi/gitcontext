@@ -13,6 +13,7 @@ from .config import get_settings
 from .db import get_session
 from .embeddings import get_embedder
 from .indexing import chunk_dict, index_repository
+from .retrieval import invalidate
 from .retrieval import search as hybrid_search
 from .ingest.cloner import clone_repo
 from .ingest.errors import IngestError
@@ -98,8 +99,10 @@ def remove(repo: Repository = Depends(owned_repo), session: Session = Depends(ge
     if repo.status == "indexing":
         raise IngestError("indexing_in_progress", "Wait for indexing to finish before removing this repository.", 409)
     shutil.rmtree(workspace_path(repo.id, repo.owner, repo.name), ignore_errors=True)
+    rid = repo.id
     session.delete(repo)
     session.commit()
+    invalidate(rid)
     return Response(status_code=204)
 
 

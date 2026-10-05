@@ -44,3 +44,13 @@ Repository content is untrusted: it is passed to the LLM strictly as quoted data
 | Workspace dir `{repo_id}__{owner}__{name}` | Two users indexing the same repo never share or delete each other's clone |
 | Startup marks pending/indexing repos failed | A crash can never leave a repo "indexing" forever |
 | Free-plan limits (5 repos, 50 MB indexed source) as config | Entitlement boundary without fake billing |
+
+## Retrieval decisions
+| Decision | Why |
+|---|---|
+| Three channels (vector, BM25 with identifier splitting, exact-symbol match) fused by weighted RRF | Code queries mix concepts and exact names; no single signal covers both |
+| Channel weight comes from the embedder (`retrieval_weight`) | Measured: equal weights let the weak lexical embedder hurt BM25; neural embeddings should get full weight |
+| Dedupe overlapping chunks of the same file before reranking | Avoids showing a class and its method as two "different" results |
+| Heuristic reranker with transparent `signals` | No cross-encoder available offline; every adjustment is inspectable and measured in an ablation |
+| Benchmark frozen before implementation, dev/held-out split | Prevents tuning to the test set; documents limits honestly |
+| In-memory corpus cache keyed by (repo, chunk count, max chunk id, model) | Re-indexing changes chunk ids, so stale caches cannot be served |

@@ -62,7 +62,7 @@ await step("4 refresh: session persists", async () => {
   await page.getByText(email).waitFor();
   expect(page.url().endsWith("/dashboard"), "not on dashboard after reload: " + page.url());
 });
-let states1 = [];
+let states1 = [], chunkText = "";
 await step("5-7 connect pallets/click; observe REAL states in the UI until ready", async () => {
   await page.getByLabel("GitHub repository URL").fill(REPO);
   await page.getByRole("button", { name: "Connect repository" }).click();
@@ -73,7 +73,9 @@ await step("5-7 connect pallets/click; observe REAL states in the UI until ready
 });
 await step("8 dashboard shows the indexed repo with real counts", async () => {
   const t = await card().innerText();
-  expect(/170 files/.test(t) && /1,673 chunks/.test(t) && /python/.test(t), "unexpected card: " + t.replace(/\n/g, " | "));
+  const m = t.match(/(\d+) files · ([\d,]+) chunks/);
+  expect(m && +m[1] >= 100 && +m[2].replace(/,/g, "") >= 1000 && /python/.test(t), "unexpected card: " + t.replace(/\n/g, " | "));
+  chunkText = m[2];
   return t.replace(/\n/g, " | ");
 });
 let wsUrl = "";
@@ -83,14 +85,29 @@ await step("9 open workspace", async () => {
   wsUrl = page.url();
   await page.getByRole("heading", { name: "pallets/click" }).waitFor();
   const t = await page.locator("main").innerText();
-  expect(/170/.test(t) && /1,673/.test(t) && /ready/.test(t), "workspace metadata missing");
+  expect(t.includes(chunkText) && /ready/.test(t), "workspace metadata missing (expected chunks " + chunkText + ")");
   await shot("05-workspace");
 });
 await step("10-11 refresh workspace: state persists", async () => {
   await page.reload();
   await page.getByRole("heading", { name: "pallets/click" }).waitFor();
   const t = await page.locator("main").innerText();
-  expect(/1,673/.test(t) && /ready/.test(t) && page.url() === wsUrl, "state lost after reload");
+  expect(t.includes(chunkText) && /ready/.test(t) && page.url() === wsUrl, "state lost after reload");
+});
+await step("11b search the codebase from the workspace (real results with citations)", async () => {
+  await page.getByLabel("Search query").fill("how is a progress bar rendered");
+  await page.getByRole("button", { name: "Search" }).click();
+  const hits = page.locator("[data-testid=hit]");
+  await hits.first().waitFor();
+  const texts = await hits.allInnerTexts();
+  expect(texts.length >= 3, "expected several results, got " + texts.length);
+  expect(texts.slice(0, 5).some((t) => /_termui_impl\.py:\d+-\d+/.test(t) && /ProgressBar/.test(t)), "ProgressBar not in top 5: " + texts.slice(0, 5).map((t) => t.split("\n")[0]).join(" | "));
+  expect(texts.every((t) => /\.\w+:\d+-\d+/.test(t)), "a result lacks a file:line citation");
+  await shot("05b-search");
+  await page.getByLabel("Search query").fill("zzzzqqqq nonexistentword");
+  await page.getByRole("button", { name: "Search" }).click();
+  await page.waitForTimeout(800);
+  return texts.slice(0, 3).map((t) => t.split("\n")[0]).join(" | ");
 });
 await step("12 log out -> /login", async () => {
   await page.getByRole("button", { name: "Log out" }).click();
@@ -130,7 +147,7 @@ await step("16-17 click Re-index; observe REAL state changes in the UI", async (
     await page.waitForTimeout(100);
   }
   expect(seen.length >= 2 && seen.at(-1).startsWith("ready") && seen.some((s) => s.startsWith("indexing") || s === "pending"), "states: " + seen.join(" -> "));
-  expect(/1,673 chunks/.test(await card().innerText()), "chunk count changed after re-index");
+  expect((await card().innerText()).includes(chunkText + " chunks"), "chunk count changed after re-index (was " + chunkText + ")");
   return seen.join(" -> ");
 });
 await step("18-19 invalid repository URL shows a useful error", async () => {

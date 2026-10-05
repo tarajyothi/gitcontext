@@ -2,7 +2,7 @@
 
 **A codebase intelligence copilot.** Connect a GitHub repository, and ask questions about it. Answers are generated from retrieved code and cite exact file paths and line ranges. When the evidence isn't there, GitContext says so instead of guessing.
 
-> **Status:** SaaS core works: accounts, per-user workspaces, repository ownership, background indexing with a real state machine, dashboard and repository workspace. **Not built yet:** hybrid retrieval, reranking, question answering with citations, deployment. Retrieval/answer quality: **NOT MEASURED YET**.
+> **Status:** SaaS core + hybrid code search work: accounts, per-user workspaces, background indexing, and a search panel that returns cited code (file + exact lines). **Not built yet:** question answering with generated, cited answers, and deployment. Retrieval is benchmarked ([results and caveats](docs/benchmarks/retrieval.md)); answer quality is **NOT MEASURED YET**.
 
 ## Problem
 Developers constantly join unfamiliar repositories. Grep finds strings but not meaning; generic chatbots hallucinate about code they can't see. GitContext grounds every answer in the actual repository and shows its evidence.
@@ -69,7 +69,8 @@ All routes except `/health`, `/auth/signup` and `/auth/login` require a session 
 | POST | `/repositories/{id}/reindex` | Re-clone and re-index; also the retry path for `failed` repos (409 while indexing) |
 | DELETE | `/repositories/{id}` | Removes DB rows and the clone on disk (409 while indexing) |
 | GET | `/repositories/{id}/files` · `/chunks` | Indexed files · chunks with exact line ranges |
-| POST | `/repositories/{id}/index` · `/search` | Re-chunk/re-embed without re-cloning · vector-only search (verification endpoint) |
+| POST | `/repositories/{id}/index` | Re-chunk/re-embed without re-cloning |
+| POST | `/repositories/{id}/search` | Hybrid code search. Body: `{"query", "k": 1-50, "mode": "hybrid"\|"vector"\|"bm25", "rerank": true, "filters": {"language": [], "path_prefix": "", "kinds": [], "exclude_tests": false, "exclude_docs": false}}`. Returns chunks with `file_path`, `start_line`, `end_line`, `symbol`, `kind`, `content`, `score` and `signals` (vector rank, keyword rank, identifier match, rerank adjustment) |
 | GET | `/usage` | Real counts: repositories used/limit, files, chunks. `questions: null` (not implemented) |
 
 **Repository states:** `pending -> indexing (stage: cloning | scanning | embedding) -> ready | failed`. Stages are written by the backend as work happens; the UI polls them. A server restart marks interrupted jobs `failed` with a retry message.
@@ -98,7 +99,7 @@ Repository content is treated as untrusted data. Secrets live only in `.env` (gi
 - [x] Day 1: Skeleton, schema, health endpoint, README
 - [x] Day 2: GitHub ingestion
 - [x] Day 3: Code-aware chunking + embeddings
-- [ ] Day 4: Hybrid retrieval + reranking
+- [x] Day 4: Hybrid retrieval + reranking (benchmarked: held-out R@5 0.83 on one repo, see docs)
 - [ ] Day 5: RAG answering + citations
 - [ ] Day 6: Evaluation + reliability
 - [ ] Day 7: UI + deployment
@@ -116,4 +117,5 @@ Repository content is treated as untrusted data. Secrets live only in `.env` (gi
 - **Default embedder is not a neural model.** It is a deterministic, identifier-aware feature-hashing baseline: good at exact/partial identifier and word overlap, weak at paraphrase-level meaning. Neural embeddings need `EMBEDDING_PROVIDER=openai` + `EMBEDDING_API_KEY` (code path unit-tested with a mock; **not yet run against a live API**).
 - Chunking: Python (ast), JS/TS (declaration scanner; regex literals containing quotes can confuse it), Markdown (headings). Other languages use 60-line windows with 10-line overlap. Large classes split per method (Python only); other oversized chunks split into `(part N)`.
 - Vector search is brute-force NumPy cosine over all chunks of a repo (fine at this scale; pgvector/ANN is a later optimisation).
-- No retrieval or answer quality metrics yet.
+- Retrieval quality is measured on one Python repo with 36 questions (see docs/benchmarks/retrieval.md); neural-embedding retrieval is unmeasured.
+- The in-memory search index (BM25 + vectors) is built on the first query after (re)indexing and cached per process (4 repos).
