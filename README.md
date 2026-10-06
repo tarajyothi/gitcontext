@@ -53,6 +53,8 @@ Optional Postgres + pgvector (needed from Day 3): `docker compose up -d`, then s
 `docker-compose.prod.yml` (Caddy HTTPS -> Next.js + FastAPI -> PostgreSQL), `deploy/Caddyfile`, Alembic migrations, a CI workflow and a post-deploy smoke test (`backend/scripts/smoke_test.py <url>`) are included. Verified locally; **not yet run on Docker or a host**. Full steps, checks and limits: [docs/deployment.md](docs/deployment.md).
 
 ## Tests
+**Record a real-time video of the app** (captioned, real HTTPS/Postgres run): `IGNORE_TLS=1 node e2e/record_demo.mjs https://localhost:8443 ./rec && python e2e/build_video.py ./rec demo.mp4` (needs `playwright-core`, `@sparticuz/chromium`, `imageio-ffmpeg`).
+
 **Real-browser flow:** with backend and `next start` running, `cd e2e && npm i playwright-core @sparticuz/chromium && node browser_flow.mjs http://localhost:3000 ./shots` drives signup, indexing, workspace, logout/login, re-index, error states and a mobile viewport in real Chromium.
 
 ```bash
