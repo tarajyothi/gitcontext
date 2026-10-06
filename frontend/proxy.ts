@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-// Fast server-side gate: no session cookie -> /login. The cookie's validity is enforced by the API (401 -> /login).
+// (Next 16 renamed the "middleware" file convention to "proxy".) Fast server-side gate: no session cookie -> /login. The cookie's validity is enforced by the API (401 -> /login).
 // Behind a TLS-terminating proxy the URL Next sees is http://<internal>, so the redirect is built from the public
 // Host header and X-Forwarded-Proto (set by Caddy). Next requires an absolute URL here.
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   if (!req.cookies.get("gc_session")) {
     const proto = req.headers.get("x-forwarded-proto")?.split(",")[0].trim() || req.nextUrl.protocol.replace(":", "");
     const host = req.headers.get("host") || req.nextUrl.host;
