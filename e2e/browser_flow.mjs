@@ -11,7 +11,7 @@ const email = `browser-${Date.now()}@example.com`, password = "correct-horse-1";
 const REPO = "https://github.com/pallets/click";
 const results = [], consoleErrors = [];
 const browser = await pw.launch({ executablePath: await chromium.executablePath(), args: chromium.args, headless: true });
-const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, ignoreHTTPSErrors: process.env.IGNORE_TLS === "1" });
 const page = await ctx.newPage();
 page.on("pageerror", (e) => consoleErrors.push("pageerror: " + e.message));
 page.on("console", (m) => m.type() === "error" && consoleErrors.push(`console: ${m.text()} @ ${page.url()}`));

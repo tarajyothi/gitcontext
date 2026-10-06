@@ -1,7 +1,7 @@
-# Optional on Day 1 (SQLite is the default). Required from Day 3 for pgvector.
+# Local PostgreSQL for development (SQLite is the default). Set DATABASE_URL=postgresql+psycopg://gitcontext:gitcontext@localhost:5432/gitcontext
 services:
   db:
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: gitcontext
       POSTGRES_PASSWORD: gitcontext

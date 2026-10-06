@@ -1,0 +1,60 @@
+# Production stack: Caddy (HTTPS) -> Next.js + FastAPI -> PostgreSQL.  Usage: see docs/deployment.md
+# NOTE: written for a Docker host; it has not been built or run on Docker by the author (no Docker in the dev sandbox).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gitcontext
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: gitcontext
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitcontext -d gitcontext"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://gitcontext:${POSTGRES_PASSWORD}@db:5432/gitcontext
+      COOKIE_SECURE: "true"
+      ALLOWED_HOSTS: ${DOMAIN:?set DOMAIN}
+      LLM_PROVIDER: ${LLM_PROVIDER:-extractive}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-claude-haiku-4-5-20251001}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-hashing}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+    volumes: [workspace:/data/workspace]
+    expose: ["8000"]   # not published: only Caddy can reach it (it trusts X-Forwarded-* from the proxy)
+
+  frontend:
+    build:
+      context: ./frontend
+      args: {BACKEND_URL: "http://backend:8000"}
+    restart: unless-stopped
+    depends_on: [backend]
+    expose: ["3000"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [frontend, backend]
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  workspace:
+  caddy_data:
+  caddy_config:

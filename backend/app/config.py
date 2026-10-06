@@ -7,6 +7,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    environment: str = "development"  # "production" enables fail-fast validation and hardening
+    allowed_hosts: str = ""  # comma-separated Host allow-list (empty = any); set to your domain in production
+    max_body_bytes: int = 65536
     app_name: str = "GitContext"
     app_version: str = "0.1.0"
     database_url: str = "sqlite:///./gitcontext.db"
@@ -38,3 +41,19 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def validate_production(s: Settings) -> list[str]:
+    """Problems that must stop a production start (an insecure deployment is worse than a failed one)."""
+    problems = []
+    if not s.cookie_secure:
+        problems.append("COOKIE_SECURE must be true (serve over HTTPS)")
+    if s.database_url.startswith("sqlite"):
+        problems.append("DATABASE_URL must point to PostgreSQL (SQLite is for development only)")
+    if s.llm_provider == "anthropic" and not s.llm_api_key:
+        problems.append("LLM_PROVIDER=anthropic requires LLM_API_KEY")
+    if s.embedding_provider == "openai" and not s.embedding_api_key:
+        problems.append("EMBEDDING_PROVIDER=openai requires EMBEDDING_API_KEY")
+    if not s.allowed_hosts.strip():
+        problems.append("ALLOWED_HOSTS must list your domain(s)")
+    return problems

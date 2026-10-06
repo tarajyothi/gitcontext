@@ -64,3 +64,13 @@ Repository content is untrusted: it is passed to the LLM strictly as quoted data
 | Repo text delimited, escaped (opening and closing tags), marked untrusted | Prompt-injection hygiene. A test found forged opening tags were not escaped; fixed |
 | Question history stored with answers and citations | Activity feed, daily limits, and reproducibility |
 | Unanswerable-question benchmark frozen first | Refusal quality is measurable; avoids tuning the gate to the test set |
+
+## Deployment decisions
+| Decision | Why |
+|---|---|
+| Caddy in front, routing `/api/*` to FastAPI and the rest to Next | One origin: first-party cookie, no CORS, automatic HTTPS |
+| `ENVIRONMENT=production` fails fast on insecure config | A misconfigured deploy should not start |
+| Alembic baseline; production never calls `create_all` | Schema changes must be versioned and reversible |
+| Absolute redirects built from `Host` + `X-Forwarded-Proto` in Next middleware | Found by a real-browser HTTPS test: internal `http://` URLs broke redirects behind TLS |
+| Single backend worker | Jobs, login limiter and search cache are in-process (documented limit) |
+| Post-deploy smoke test as the definition of "live" | A deploy is not done until the live URL passes it |

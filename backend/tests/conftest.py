@@ -1,6 +1,6 @@
 import os
 
-os.environ["DATABASE_URL"] = "sqlite:///./test_gitcontext.db"
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "sqlite:///./test_gitcontext.db")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

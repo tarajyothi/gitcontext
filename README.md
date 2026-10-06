@@ -2,7 +2,7 @@
 
 **A codebase intelligence copilot.** Connect a GitHub repository, and ask questions about it. Answers are generated from retrieved code and cite exact file paths and line ranges. When the evidence isn't there, GitContext says so instead of guessing.
 
-> **Status:** SaaS core, hybrid code search and evidence-grounded question answering work: ask a question, get cited code (file + exact lines), or an honest refusal when the repository has no evidence. Answers are **extractive summaries** by default; LLM-written answers are implemented behind a key but **not yet measured**. Not built: deployment. Benchmarks: [retrieval](docs/benchmarks/retrieval.md), [answering](docs/benchmarks/answering.md).
+> **Status:** accounts, per-user workspaces, background indexing, hybrid code search and evidence-grounded answers (with honest refusals) all work, and the production stack (Postgres + HTTPS proxy + hardened app) is verified end-to-end on one machine. **Not deployed yet**: no live URL. See [deployment guide](docs/deployment.md). Benchmarks: [retrieval](docs/benchmarks/retrieval.md), [answering](docs/benchmarks/answering.md).
 
 ## Problem
 Developers constantly join unfamiliar repositories. Grep finds strings but not meaning; generic chatbots hallucinate about code they can't see. GitContext grounds every answer in the actual repository and shows its evidence.
@@ -48,6 +48,9 @@ npm run dev
 **Upgrading from an earlier checkout:** the schema changed (users, workspaces, per-user repositories) and there are no migrations yet. Delete `backend/gitcontext.db` and `backend/workspace/` once.
 
 Optional Postgres + pgvector (needed from Day 3): `docker compose up -d`, then set `DATABASE_URL` in `.env`.
+
+## Deployment
+`docker-compose.prod.yml` (Caddy HTTPS -> Next.js + FastAPI -> PostgreSQL), `deploy/Caddyfile`, Alembic migrations, a CI workflow and a post-deploy smoke test (`backend/scripts/smoke_test.py <url>`) are included. Verified locally; **not yet run on Docker or a host**. Full steps, checks and limits: [docs/deployment.md](docs/deployment.md).
 
 ## Tests
 **Real-browser flow:** with backend and `next start` running, `cd e2e && npm i playwright-core @sparticuz/chromium && node browser_flow.mjs http://localhost:3000 ./shots` drives signup, indexing, workspace, logout/login, re-index, error states and a mobile viewport in real Chromium.
@@ -111,7 +114,7 @@ Repository content is treated as untrusted data. Secrets live only in `.env` (gi
 - [x] Day 4: Hybrid retrieval + reranking (benchmarked: held-out R@5 0.83 on one repo, see docs)
 - [x] Day 5: Evidence-grounded answering + citations + refusal (extractive measured; LLM path unmeasured)
 - [ ] Day 6: Evaluation + reliability
-- [ ] Day 7: UI + deployment
+- [~] Day 7: UI done; deployment artifacts verified locally, live URL pending
 - [ ] Day 8: Docs, demo, release
 
 ## Limitations (current)

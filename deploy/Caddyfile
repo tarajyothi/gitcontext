@@ -1,0 +1,24 @@
+# Automatic HTTPS for a real domain. Set DOMAIN (e.g. app.example.com). Locally: DOMAIN=localhost uses a self-signed cert.
+{
+	http_port {$HTTP_PORT:80}
+	https_port {$HTTPS_PORT:443}
+}
+
+{$DOMAIN:localhost} {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# API: strip the /api prefix and send to the backend (same origin => first-party session cookie, no CORS)
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy {$BACKEND_UPSTREAM:backend:8000}
+	}
+
+	handle {
+		reverse_proxy {$FRONTEND_UPSTREAM:frontend:3000}
+	}
+}
