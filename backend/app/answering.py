@@ -137,6 +137,7 @@ class AnthropicGenerator:
         if not api_key:
             raise LLMError("LLM_API_KEY is not set")
         self.model, self.url = model, base_url.rstrip("/") + "/messages"
+        self.last_usage = None
         self.client = httpx.Client(timeout=45, transport=transport,
                                    headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"})
 
@@ -152,7 +153,10 @@ class AnthropicGenerator:
                     continue
                 if r.status_code != 200:
                     raise LLMError(f"LLM API returned HTTP {r.status_code}")
-                return "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+                body = r.json()
+                u = body.get("usage") or {}
+                self.last_usage = (u.get("input_tokens"), u.get("output_tokens"))
+                return "".join(b.get("text", "") for b in body.get("content", []) if b.get("type") == "text")
             except httpx.HTTPError as e:
                 last = type(e).__name__
                 time.sleep(0.4 * (attempt + 1))
@@ -226,7 +230,7 @@ def refusal(question: str, gate: dict, closest: list[dict]) -> dict:
     if gate["missing_terms"]:
         msg += " Nothing in the indexed code mentions: " + ", ".join(gate["missing_terms"]) + "."
     return {"status": "insufficient_evidence", "answer": msg, "generation": None, "citations": [], "warnings": [],
-            "evidence_coverage": gate["coverage"], "missing_terms": gate["missing_terms"],
+            "evidence_coverage": gate["coverage"], "missing_terms": gate["missing_terms"], "usage": None,
             "closest": [{"file_path": h["file_path"], "start_line": h["start_line"], "end_line": h["end_line"], "symbol": h["symbol"]} for h in closest[:3]]}
 
 
@@ -260,4 +264,5 @@ def answer_question(session: Session, repo_id: int, question: str, embedder, gen
             seen.add(n)
             cites.append(_citation(by_n[n], (a, b)))
     return {"status": "answered", "answer": text, "generation": generation, "citations": cites, "warnings": warnings,
-            "evidence_coverage": gate["coverage"], "missing_terms": [], "closest": []}
+            "evidence_coverage": gate["coverage"], "missing_terms": [], "closest": [],
+            "usage": getattr(generator, "last_usage", None) if generation == "llm" else None}

@@ -7,10 +7,11 @@ import numpy as np
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .chunking import chunk_file
+from .chunking import CHUNKER_VERSION, chunk_file
 from .embeddings import Embedder
 from .ingest.errors import IngestError
 from .ingest.service import workspace_path
+from .redact import redact
 from .retrieval import invalidate
 from .models import Chunk, ChunkEmbedding, RepoFile, Repository, utcnow
 
@@ -23,8 +24,14 @@ def embed_text(c: Chunk) -> str:
     return (head + c.content)[:8000]
 
 
+def index_signature(embedder: Embedder) -> str:
+    return f"{CHUNKER_VERSION}|{embedder.name}"
+
+
 def index_repository(session: Session, repo_id: int, embedder: Embedder, batch_size: int = 64,
-                     check_ready: bool = True) -> dict:
+                     check_ready: bool = True, only_file_ids: set[int] | None = None) -> dict:
+    """Chunk + embed files. `only_file_ids=None` rebuilds everything; otherwise only those files are replaced
+    (everything else keeps its chunks and vectors). Commits once at the end, so a failure leaves the old index intact."""
     t0 = time.perf_counter()
     repo = session.get(Repository, repo_id)
     if repo is None:
@@ -35,10 +42,19 @@ def index_repository(session: Session, repo_id: int, embedder: Embedder, batch_s
     if not root.is_dir():
         raise IngestError("workspace_missing", "Repository files are no longer on disk. Re-ingest it first.", 409)
 
-    session.execute(delete(ChunkEmbedding).where(ChunkEmbedding.repository_id == repo_id))
-    session.execute(delete(Chunk).where(Chunk.repository_id == repo_id))
-    rows, skipped = [], Counter()
-    for f in session.scalars(select(RepoFile).where(RepoFile.repository_id == repo_id, RepoFile.language.is_not(None))):
+    files_q = select(RepoFile).where(RepoFile.repository_id == repo_id, RepoFile.language.is_not(None))
+    if only_file_ids is None:
+        session.execute(delete(ChunkEmbedding).where(ChunkEmbedding.repository_id == repo_id))
+        session.execute(delete(Chunk).where(Chunk.repository_id == repo_id))
+    else:
+        ids = list(only_file_ids)
+        if ids:
+            old = select(Chunk.id).where(Chunk.file_id.in_(ids))
+            session.execute(delete(ChunkEmbedding).where(ChunkEmbedding.chunk_id.in_(old)))
+            session.execute(delete(Chunk).where(Chunk.file_id.in_(ids)))
+        files_q = files_q.where(RepoFile.id.in_(ids))
+    rows, skipped, redacted = [], Counter(), 0
+    for f in session.scalars(files_q):
         path = (root / f.path).resolve()
         if root not in path.parents or not path.is_file():
             skipped["missing_or_unsafe"] += 1
@@ -48,6 +64,8 @@ def index_repository(session: Session, repo_id: int, embedder: Embedder, batch_s
             skipped["binary"] += 1
             continue
         for c in chunk_file(f.path, raw.decode("utf-8", errors="replace"), f.language):
+            c.content, n_secret = redact(c.content)  # credentials never reach the index, the embedder, or the UI
+            redacted += n_secret
             rows.append(Chunk(repository_id=repo_id, file_id=f.id, file_path=c.file_path, symbol=c.symbol,
                               symbol_kind=c.kind, language=c.language, start_line=c.start_line,
                               end_line=c.end_line, content=c.content, content_hash=c.content_hash))
@@ -68,7 +86,7 @@ def index_repository(session: Session, repo_id: int, embedder: Embedder, batch_s
     t_end = time.perf_counter()
     stats = {"repository_id": repo_id, "files_indexed": len({c.file_id for c in rows}), "chunks": len(rows),
              "embeddings": len(rows), "model": embedder.name, "dim": dim,
-             "by_kind": dict(Counter(c.symbol_kind for c in rows)), "skipped": dict(skipped),
+             "by_kind": dict(Counter(c.symbol_kind for c in rows)), "skipped": dict(skipped), "redacted_secrets": redacted,
              "chunk_seconds": round(t_chunk - t0, 3), "embed_seconds": round(t_end - t_chunk, 3)}
     log.info("indexed %s", stats)
     return stats

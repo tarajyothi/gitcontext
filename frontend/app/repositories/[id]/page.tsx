@@ -70,6 +70,15 @@ export default function Workspace() {
           <div className="mt-4 flex flex-wrap gap-2">
             {Object.entries(repo.languages).map(([l, n]) => <span key={l} className="rounded bg-slate-800 px-2 py-0.5 text-xs">{l} {n}</span>)}
           </div>
+          {repo.last_index && (
+            <p data-testid="last-index" className="mt-3 text-xs text-slate-400">
+              Last index: <b className="text-slate-200">{repo.last_index.mode}</b> · {repo.last_index.new + repo.last_index.changed} new/changed,{" "}
+              {repo.last_index.removed} removed, {repo.last_index.unchanged} unchanged files · reused {repo.last_index.chunks_reused.toLocaleString()} of{" "}
+              {repo.last_index.chunks_total.toLocaleString()} chunks · {repo.last_index.seconds}s
+              {repo.last_index.truncated ? " · file limit reached, some files were skipped" : ""}
+              {repo.last_index.redacted_secrets ? ` · ${repo.last_index.redacted_secrets} secret(s) masked` : ""}
+            </p>
+          )}
           {repo.status === "ready" && <AskPanel repoId={repo.id} />}
           {repo.status === "ready" && <SearchPanel repoId={repo.id} />}
           <div className="mt-6 flex gap-2">

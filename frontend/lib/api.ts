@@ -7,6 +7,8 @@ export type Repo = {
   stage: string | null; error_message: string | null; default_branch: string | null; commit_sha: string | null;
   file_count: number; chunk_count: number; total_bytes: number; languages: Record<string, number>;
   created_at: string; updated_at: string; indexed_at: string | null;
+  last_index: { mode: "full" | "incremental"; files: number; new: number; changed: number; removed: number; unchanged: number;
+    chunks_total: number; chunks_reprocessed: number; chunks_reused: number; seconds: number; truncated?: boolean; redacted_secrets?: number } | null;
 };
 export type User = { id: number; email: string; workspace: { id: number; name: string } };
 export type Usage = { plan: string; repositories: { used: number; limit: number }; files_indexed: number; chunks_indexed: number };

@@ -52,3 +52,26 @@ class FailureLimiter:
 
 
 login_limiter = FailureLimiter()
+
+
+class RateLimiter:
+    """In-memory sliding window (single process). hit() returns 0 when allowed, else seconds to wait."""
+
+    def __init__(self):
+        self._hits: dict[str, list[float]] = defaultdict(list)
+
+    def hit(self, key: str, limit: int, window_s: int) -> int:
+        now = time.time()
+        recent = [t for t in self._hits[key] if now - t < window_s]
+        if len(recent) >= limit:
+            self._hits[key] = recent
+            return max(1, int(window_s - (now - recent[0])) + 1)
+        recent.append(now)
+        self._hits[key] = recent
+        return 0
+
+    def reset(self) -> None:
+        self._hits.clear()
+
+
+rate_limiter = RateLimiter()

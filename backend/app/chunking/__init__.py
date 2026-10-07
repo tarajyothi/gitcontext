@@ -9,6 +9,7 @@ import hashlib
 import re
 from dataclasses import dataclass
 
+CHUNKER_VERSION = "chunker-v1"  # bump when chunking output changes: forces a full re-index
 MAX_LINES = 120   # chunks longer than this are split into numbered parts
 WINDOW = 60       # fallback window size
 OVERLAP = 10      # fallback overlap

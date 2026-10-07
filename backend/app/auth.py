@@ -11,7 +11,7 @@ from .config import get_settings
 from .db import get_session
 from .ingest.errors import IngestError
 from .models import AuthSession, Repository, User, Workspace, utcnow
-from .security import DUMMY_HASH, hash_password, login_limiter, new_token, token_hash, verify_password
+from .security import DUMMY_HASH, hash_password, login_limiter, new_token, rate_limiter, token_hash, verify_password
 
 COOKIE = "gc_session"
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -52,8 +52,15 @@ def user_dict(session: Session, user: User) -> dict:
     return {"id": user.id, "email": user.email, "workspace": {"id": ws.id, "name": ws.name}}
 
 
+def too_many(retry_after: int) -> IngestError:
+    return IngestError("rate_limited", f"Too many requests. Try again in {retry_after} seconds.", 429, {"Retry-After": str(retry_after)})
+
+
 @router.post("/signup")
-def signup(body: SignupBody, response: Response, session: Session = Depends(get_session)):
+def signup(body: SignupBody, request: Request, response: Response, session: Session = Depends(get_session)):
+    wait = rate_limiter.hit(f"signup:{request.client.host if request.client else '?'}", get_settings().rate_signup_per_hour, 3600)
+    if wait:
+        raise too_many(wait)
     email = _norm(body.email)
     if session.scalar(select(User).where(User.email == email)):
         raise IngestError("email_taken", "An account with this email already exists. Try logging in.", 409)
@@ -120,3 +127,12 @@ def owned_repo(repo_id: int, ws: Workspace = Depends(get_workspace), session: Se
     if repo is None:
         raise HTTPException(404, "Repository not found")
     return repo
+
+
+def limited(setting: str, window_s: int = 60):
+    """Per-user rate limit dependency; the limit is read from settings at request time."""
+    def dep(user: User = Depends(current_user)) -> None:
+        wait = rate_limiter.hit(f"{setting}:{user.id}", getattr(get_settings(), setting), window_s)
+        if wait:
+            raise too_many(wait)
+    return dep

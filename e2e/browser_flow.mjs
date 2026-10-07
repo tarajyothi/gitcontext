@@ -94,6 +94,11 @@ await step("10-11 refresh workspace: state persists", async () => {
   const t = await page.locator("main").innerText();
   expect(t.includes(chunkText) && /ready/.test(t) && page.url() === wsUrl, "state lost after reload");
 });
+await step("11a workspace shows how the repository was indexed (first index = full)", async () => {
+  const t = await page.locator("[data-testid=last-index]").innerText();
+  expect(/Last index: full/.test(t) && /reused 0 of/.test(t), "last-index text: " + t);
+  return t;
+});
 await step("11b search the codebase from the workspace (real results with citations)", async () => {
   await page.getByLabel("Search query").fill("how is a progress bar rendered");
   await page.getByRole("button", { name: "Search" }).click();
@@ -180,6 +185,16 @@ await step("16-17 click Re-index; observe REAL state changes in the UI", async (
   expect(seen.length >= 2 && seen.at(-1).startsWith("ready") && seen.some((s) => s.startsWith("indexing") || s === "pending"), "states: " + seen.join(" -> "));
   expect((await card().innerText()).includes(chunkText + " chunks"), "chunk count changed after re-index (was " + chunkText + ")");
   return seen.join(" -> ");
+});
+await step("17b after re-index the workspace reports an INCREMENTAL run that reused everything", async () => {
+  await card().getByRole("link", { name: "Open workspace" }).click();
+  await page.waitForURL(/\/repositories\/\d+$/);
+  const t = await page.locator("[data-testid=last-index]").innerText();
+  expect(/Last index: incremental/.test(t) && /0 new\/changed/.test(t) && /0 removed/.test(t) && !/reused 0 of/.test(t), "last-index text: " + t);
+  await shot("05e-incremental");
+  await page.goto(BASE + "/dashboard");
+  await card().waitFor();
+  return t;
 });
 await step("18-19 invalid repository URL shows a useful error", async () => {
   await page.getByLabel("GitHub repository URL").fill("https://example.com/x/y");

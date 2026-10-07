@@ -1,8 +1,11 @@
 """GitContext API entrypoint (app factory)."""
 import logging
+import shutil
+import tempfile
 import time
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -18,6 +21,7 @@ from .config import Settings, get_settings, validate_production
 from .db import SessionLocal, engine, init_db
 from .embeddings import EmbeddingError
 from .ingest.errors import IngestError
+from .logging_setup import configure_logging
 from .models import Repository
 from .routes import router, usage_router
 
@@ -36,7 +40,7 @@ def error_body(code: str, message: str, request_id: str, details=None) -> dict:
 def create_app(s: Settings | None = None) -> FastAPI:
     s = s or get_settings()
     prod = s.environment == "production"
-    logging.basicConfig(level=s.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    configure_logging(s.log_level, s.log_format)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -80,13 +84,14 @@ def create_app(s: Settings | None = None) -> FastAPI:
         if s.cookie_secure:
             response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         if request.url.path != "/health":  # path only: never log query strings, cookies or bodies
-            log.info("%s %s -> %d %.0fms rid=%s", request.method, request.url.path, response.status_code,
-                     (time.perf_counter() - t0) * 1000, rid)
+            ms = round((time.perf_counter() - t0) * 1000)
+            log.info("%s %s -> %d %dms rid=%s", request.method, request.url.path, response.status_code, ms, rid,
+                     extra={"request_id": rid, "method": request.method, "path": request.url.path, "status": response.status_code, "ms": ms})
         return response
 
     @app.exception_handler(IngestError)
     async def ingest_exc(request: Request, exc: IngestError):
-        return JSONResponse(error_body(exc.code, exc.message, request.state.request_id), status_code=exc.status)
+        return JSONResponse(error_body(exc.code, exc.message, request.state.request_id), status_code=exc.status, headers=exc.headers)
 
     @app.exception_handler(EmbeddingError)
     async def embedding_exc(request: Request, exc: EmbeddingError):
@@ -128,6 +133,33 @@ def create_app(s: Settings | None = None) -> FastAPI:
         body = {"status": "ok" if db_ok else "degraded", "service": s.app_name, "version": s.app_version,
                 "database": "ok" if db_ok else "unreachable"}
         return JSONResponse(body, status_code=200 if db_ok else 503)
+
+    @app.get("/ready", tags=["system"])
+    def ready():
+        """Readiness: can this instance serve traffic? (database, migrations, writable workspace, free disk)."""
+        checks: dict = {}
+        try:
+            with SessionLocal() as db:
+                db.execute(text("SELECT 1"))
+            checks["database"] = "ok"
+        except Exception:
+            log.exception("readiness: database check failed")
+            checks["database"] = "fail"
+        if prod:
+            checks["migrations"] = "ok" if "alembic_version" in inspect(engine).get_table_names() else "fail"
+        try:
+            wd = Path(s.workspace_dir)
+            wd.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=wd):
+                pass
+            checks["workspace_writable"] = "ok"
+            free = shutil.disk_usage(wd).free
+            checks["disk_free_mb"] = int(free / 1e6)
+            checks["disk"] = "ok" if free > 200e6 else "low"
+        except OSError:
+            checks["workspace_writable"] = "fail"
+        good = all(v in ("ok",) for k, v in checks.items() if k != "disk_free_mb")
+        return JSONResponse({"status": "ready" if good else "not_ready", "checks": checks}, status_code=200 if good else 503)
 
     return app
 

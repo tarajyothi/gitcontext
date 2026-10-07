@@ -7,6 +7,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    log_format: str = "text"  # "json" for log aggregation (set in production compose)
+    db_statement_timeout_ms: int = 30000  # PostgreSQL: abort any single statement after this long
+    rate_search_per_min: int = 120
+    rate_ask_per_min: int = 30
+    rate_write_per_min: int = 20  # connect / re-index / delete
+    rate_signup_per_hour: int = 30  # per client IP
+    max_clone_bytes: int = 800_000_000
     environment: str = "development"  # "production" enables fail-fast validation and hardening
     allowed_hosts: str = ""  # comma-separated Host allow-list (empty = any); set to your domain in production
     max_body_bytes: int = 65536

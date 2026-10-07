@@ -29,6 +29,7 @@ class Workspace(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     name: Mapped[str] = mapped_column(String(200))
+    plan: Mapped[str] = mapped_column(String(20), default="free", server_default="free")  # free | pro | team (limits in plans.py)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -57,6 +58,8 @@ class Repository(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     stage: Mapped[str | None] = mapped_column(String(20))  # cloning | scanning | embedding while indexing
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    index_signature: Mapped[str | None] = mapped_column(String(120))  # chunker version + embedding model of the current index
+    last_index_json: Mapped[str | None] = mapped_column(Text)  # stats of the last indexing run (incremental vs full)
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
@@ -130,4 +133,6 @@ class Question(Base):
     coverage: Mapped[float] = mapped_column(Float, default=0.0)
     answer: Mapped[str] = mapped_column(Text)
     citations_json: Mapped[str] = mapped_column(Text, default="[]")
+    llm_input_tokens: Mapped[int | None] = mapped_column(Integer)
+    llm_output_tokens: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)

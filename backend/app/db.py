@@ -14,7 +14,10 @@ class Base(DeclarativeBase):
 
 def make_engine(url: str | None = None) -> Engine:
     url = url or get_settings().database_url
-    kwargs = {"connect_args": {"check_same_thread": False}} if url.startswith("sqlite") else {}
+    if url.startswith("sqlite"):
+        kwargs = {"connect_args": {"check_same_thread": False}}
+    else:  # PostgreSQL: bound every statement so one bad query cannot hang a worker
+        kwargs = {"connect_args": {"options": f"-c statement_timeout={get_settings().db_statement_timeout_ms}"}}
     engine = create_engine(url, pool_pre_ping=True, **kwargs)
     if url.startswith("sqlite"):
         @event.listens_for(engine, "connect")

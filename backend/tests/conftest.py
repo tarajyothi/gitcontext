@@ -1,5 +1,6 @@
 import os
 
+os.environ.setdefault("GIT_ALLOW_PROTOCOL", "https:file")  # tests clone local repos; production default is https only
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "sqlite:///./test_gitcontext.db")
 
 import pytest  # noqa: E402
@@ -10,10 +11,11 @@ from fastapi.testclient import TestClient  # noqa: E402
 def clean_db():
     """Fresh tables + limiter state for every test so tests cannot leak into each other."""
     from app.db import Base, engine, init_db
-    from app.security import login_limiter
+    from app.security import login_limiter, rate_limiter
     Base.metadata.drop_all(engine)
     init_db()
     login_limiter.reset()
+    rate_limiter.reset()
     yield
 
 
