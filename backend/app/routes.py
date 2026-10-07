@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from .answering import answer_question, get_generator
 from .auth import get_workspace, limited, owned_repo
 from .plans import limits_for
-from .config import get_settings
 from .db import get_session
 from .embeddings import get_embedder
 from .indexing import chunk_dict, index_repository

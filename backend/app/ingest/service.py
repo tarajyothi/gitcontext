@@ -6,14 +6,14 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..plans import limits_for
 from ..db import SessionLocal
 from ..embeddings import Embedder, EmbeddingError
-from ..models import Chunk, ChunkEmbedding, RepoFile, Repository, Workspace, utcnow
+from ..models import Chunk, RepoFile, Repository, Workspace, utcnow
 from .cloner import CloneResult
 from .errors import IngestError
 from .scanner import scan_repository
