@@ -4,6 +4,27 @@
 
 > **Status:** accounts, per-user workspaces, background indexing, hybrid code search and evidence-grounded answers (with honest refusals) all work, and the production stack (Postgres + HTTPS proxy + hardened app) is verified end-to-end on one machine. **Not deployed yet**: no live URL. See [deployment guide](docs/deployment.md). Benchmarks: [retrieval](docs/benchmarks/retrieval.md), [answering](docs/benchmarks/answering.md).
 
+## Screenshots (real app, production build over HTTPS)
+| | |
+|---|---|
+| ![Dashboard](docs/images/04-dashboard-ready.png) | ![Cited answer](docs/images/05c-answer.png) |
+| ![Honest refusal](docs/images/05d-refusal.png) | ![Incremental index](docs/images/d6-03-incremental-reindex.png) |
+| ![Secrets masked](docs/images/d6-02-secrets-masked.png) | ![Rate limited](docs/images/d6-05-rate-limited.png) |
+
+## Results at a glance
+| | |
+|---|---|
+| Retrieval (held-out, n=12) | Recall@5 **0.83**, MRR 0.69 (vector-only: 0.42) |
+| Refuses unanswerable questions | **23 / 24**; wrongly refuses 6 / 36 answerable |
+| Incremental re-index (real `click` commits) | 26% of chunks reprocessed, index time -63% |
+| Tests | **159** automated + 22-step real-browser E2E over HTTPS |
+| Security | threat model, 0 known runtime vulnerabilities, tenant isolation tested per route |
+
+Everything above is measured on one repository with the caveats in [docs/EVALUATION.md](docs/EVALUATION.md). **Not deployed yet**: see [launch checklist](docs/launch/LAUNCH_CHECKLIST.md).
+Docs: [architecture](docs/architecture.md) · [API](docs/api.md) · [evaluation](docs/EVALUATION.md) · [security](docs/security.md) · [deployment](docs/deployment.md) · [Day 6 report](docs/day6.md)
+
+![Architecture](docs/images/architecture.png)
+
 ## Problem
 Developers constantly join unfamiliar repositories. Grep finds strings but not meaning; generic chatbots hallucinate about code they can't see. GitContext grounds every answer in the actual repository and shows its evidence.
 
@@ -110,14 +131,14 @@ Set `LLM_PROVIDER=anthropic` and `LLM_API_KEY` to enable LLM answers (the key st
 Repository content is treated as untrusted data. Secrets live only in `.env` (git-ignored). Input validation (GitHub URLs, size limits) arrives with ingestion on Day 2.
 
 ## Roadmap
-- [x] Day 1: Skeleton, schema, health endpoint, README
-- [x] Day 2: GitHub ingestion
-- [x] Day 3: Code-aware chunking + embeddings
-- [x] Day 4: Hybrid retrieval + reranking (benchmarked: held-out R@5 0.83 on one repo, see docs)
-- [x] Day 5: Evidence-grounded answering + citations + refusal (extractive measured; LLM path unmeasured)
-- [ ] Day 6: Evaluation + reliability
-- [~] Day 7: UI done; deployment artifacts verified locally, live URL pending
-- [ ] Day 8: Docs, demo, release
+- [x] Foundation, GitHub ingestion, AST-aware chunking, embeddings
+- [x] SaaS core: accounts, workspaces, ownership, background indexing, dashboard
+- [x] Hybrid retrieval + reranking, benchmarked
+- [x] Evidence-grounded answers, citations, refusals, benchmarked
+- [x] Hardening: incremental indexing, plans/usage, rate limits, secret redaction, security review
+- [x] Production stack verified locally (HTTPS, PostgreSQL, migrations, smoke test, backup/restore)
+- [ ] **Live deployment** (needs a host and a domain)
+- [ ] Benchmarks with neural embeddings and LLM-written answers (need API keys)
 
 ## Limitations (current)
 - Sessions, the login limiter and background jobs are in-process: single backend instance only. No email verification or password reset yet. No CSRF token (relies on SameSite=Lax + JSON-only API).

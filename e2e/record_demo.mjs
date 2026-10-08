@@ -64,6 +64,9 @@ while (Date.now() - t0 < 150000) {   // show the REAL backend status as it chang
 await pause(2800);
 await caption("6. Open the repository workspace"); await click(card.getByRole("link", { name: "Open workspace" }));
 await page.getByRole("heading", { name: "pallets/click" }).waitFor(); await pause(3000);
+await caption("6b. Re-index: unchanged files are NOT re-processed (incremental indexing)");
+await click(page.getByRole("button", { name: "Re-index", exact: true }));
+await page.locator("[data-testid=last-index]").filter({ hasText: "incremental" }).waitFor({ timeout: 60000 }); await pause(3200);
 await caption("7. Ask a question: the answer cites real files and exact lines");
 await type(page.getByLabel("Your question"), "How do I ask the user a yes or no confirmation question?", 28); await pause(500);
 await click(page.getByRole("button", { name: "Ask", exact: true })); await page.locator("[data-testid=answer]").waitFor(); await pause(2000);

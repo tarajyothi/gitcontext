@@ -33,6 +33,8 @@ if https:
     check("HSTS on HTTPS", "max-age" in h.get("strict-transport-security", ""))
 r = c.get("/api/health")
 check("API health + database", r.status_code == 200 and r.json().get("database") == "ok", r.text[:80])
+rd = c.get("/api/ready")
+check("readiness (database, migrations, writable workspace, disk)", rd.status_code == 200 and rd.json().get("status") == "ready", str(rd.json().get("checks")))
 check("API docs are not exposed", c.get("/api/docs").status_code == 404 and c.get("/api/openapi.json").status_code == 404)
 check("protected API rejects anonymous", c.get("/api/repositories").status_code == 401)
 r = c.get("/dashboard")
@@ -55,7 +57,7 @@ while time.time() - t0 < 240:
     if repo["status"] in ("ready", "failed"):
         break
     time.sleep(0.3)
-check("indexing reaches ready", repo["status"] == "ready" and repo["chunk_count"] > 0, " -> ".join(seen) + f" | {repo.get('file_count')} files, {repo.get('chunk_count')} chunks")
+check("indexing reaches ready", repo["status"] == "ready" and repo["chunk_count"] > 0 and repo["last_index"]["mode"] == "full", " -> ".join(seen) + f" | {repo.get('file_count')} files, {repo.get('chunk_count')} chunks")
 hits = c.post(f"/api/repositories/{rid}/search", json={"query": "confirmation prompt yes no", "k": 3}).json()
 check("search returns cited chunks", isinstance(hits, list) and len(hits) == 3 and all(x["start_line"] >= 1 for x in hits), hits[0]["file_path"] if hits else "")
 ans = c.post(f"/api/repositories/{rid}/ask", json={"question": "How do I ask the user a yes or no confirmation question?"}).json()
@@ -65,6 +67,12 @@ check("unanswerable question -> refusal, no citations", ref.get("status") == "in
 other = httpx.Client(base_url=base, timeout=30, verify=not a.insecure)
 other.post("/api/auth/signup", json={"email": "x-" + email, "password": "correct-horse-1"})
 check("another account cannot see the repository", other.get(f"/api/repositories/{rid}").status_code == 404)
+r2 = c.post(f"/api/repositories/{rid}/reindex")
+while (rp := c.get(f"/api/repositories/{rid}").json())["status"] not in ("ready", "failed"):
+    time.sleep(0.3)
+check("re-index is incremental and reuses unchanged work", r2.status_code == 202 and rp["status"] == "ready" and rp["last_index"]["mode"] == "incremental" and rp["last_index"]["chunks_reused"] > 0, str(rp["last_index"]))
+u = c.get("/api/usage").json()
+check("usage reports plan, storage and questions", u["plan"] == "free" and u["storage_bytes"] > 0 and u["questions"]["used_today"] >= 2, f"{u['plan']} | {u['questions']}")
 check("delete repository", c.delete(f"/api/repositories/{rid}").status_code == 204)
 c.post("/api/auth/logout")
 check("logout invalidates session", c.get("/api/repositories").status_code == 401)
